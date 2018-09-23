@@ -79,8 +79,8 @@ bool XFFmpeg::Open(const char *path)
             videostreamidx = i;
             video_avctx = ic->streams[i]->codec;
             qDebug()<<"videostreamidx "<<videostreamidx;
-            fps = r2d(ic->streams[i]->avg_frame_rate);
-            //printf("fps = %d\n", fps);
+            fps = r2d(ic->streams[i]->r_frame_rate);
+            qDebug()<<"ffmpeg video r_frame_rate:"<<r2d(ic->streams[i]->r_frame_rate);
             AVCodec *codec = avcodec_find_decoder(codecCTX_tmp->codec_id);
             if (!codec)
             {
@@ -107,7 +107,7 @@ bool XFFmpeg::Open(const char *path)
         else if (codecCTX_tmp->codec_type == AVMEDIA_TYPE_AUDIO)//音频流
         {
             audioStreamidx = i;
-            qDebug()<<"audio ==>"<<ic->streams[i]->duration<<"frames "<<ic->streams[i]->codec->frame_number;
+            qDebug()<<"audio duration==>"<<ic->streams[i]->duration<<"frames "<<ic->streams[i]->codec->frame_number;
             audio_avctx = ic->streams[i]->codec;
             qDebug()<<"audioStreamidx "<<audioStreamidx;
             AVCodec *codec = avcodec_find_decoder(codecCTX_tmp->codec_id);
@@ -120,6 +120,7 @@ bool XFFmpeg::Open(const char *path)
             this->sampleRate = codecCTX_tmp->sample_rate;
             this->channel = codecCTX_tmp->channels;
             this->frame_size = codecCTX_tmp->frame_size;
+
             switch (codecCTX_tmp->sample_fmt)
             {
             case AV_SAMPLE_FMT_S16:
@@ -130,9 +131,10 @@ bool XFFmpeg::Open(const char *path)
             default:
                 break;
             }
-            //printf("sample_fmt = %d, audioStreamidx = %d\n", codecCTX_tmp->sample_fmt, audioStreamidx);
-            //printf("sampleRate = %d, channel = %d, sampleSize = %d\n", this->sampleRate, this->channel, this->sampleSize);
-
+            qDebug()<<"ffmpeg: sampleRate "<<codecCTX_tmp->sample_rate;
+            qDebug()<<"ffmpeg: channel "<<codecCTX_tmp->channels;
+            qDebug()<<"ffmpeg: frame_size "<<codecCTX_tmp->frame_size;
+            qDebug()<<"ffmpeg: sampleSize "<<this->sampleSize;
         }
     }
 
@@ -151,9 +153,6 @@ void XFFmpeg::Close()
         fclose(fp);
     }
 #endif
-
-    needClose = 1;
-    qDebug()<<"needClose = 1";
 
     if (SwsCtx)
     {
@@ -216,6 +215,12 @@ int XFFmpeg::GetPts(const AVPacket *pkt)
     return pts;
 }
 
+void XFFmpeg::Flush()
+{
+    avcodec_flush_buffers(video_avctx);
+    avcodec_flush_buffers(audio_avctx);
+}
+
 int XFFmpeg::Decode(const AVPacket *pkt, AVFrame *frame)
 {
     mutex.lock();
@@ -248,6 +253,16 @@ int XFFmpeg::Decode(const AVPacket *pkt, AVFrame *frame)
         mutex.unlock();
         return NULL;
     }
+
+    AVRational playTimeBase;
+    playTimeBase.num = 1;
+    playTimeBase.den = 1000;
+    //qDebug()<<"stream_index "<<pkt->stream_index<<" before timebase convert pts:"<<frame->pts;
+    frame->pts = av_rescale_q_rnd(frame->pts,ic->streams[pkt->stream_index]->time_base,
+            ic->streams[pkt->stream_index]->codec->time_base, AV_ROUND_NEAR_INF);
+    frame->pts = av_rescale_q_rnd(frame->pts,ic->streams[pkt->stream_index]->codec->time_base,
+            playTimeBase, AV_ROUND_NEAR_INF);
+    //qDebug()<<"stream_index "<<pkt->stream_index<<" after timebase convert pts:"<<frame->pts;
 
 #if SAVEYUV
     if (pkt->stream_index == videostreamidx)
@@ -380,10 +395,8 @@ bool XFFmpeg::Seek(float pos)
     seek_stamp = (pos * totalMs / 1000) * AV_TIME_BASE;//ic->streams[videostreamidx]->duration;
     qDebug()<<"pos :"<<pos<<"seek_stamp(us):"<<seek_stamp<<"totalMs :"<<totalMs;
     XFFmpeg::Get()->bSeek = 1;
-    //int in = getTimeInUs();
-    //qDebug()<<"ffmpeg===> "<<in<<"ms";
-    //avcodec_flush_buffers(ic->streams[videostreamidx]->codec);
-    //pts = seek_stamp * r2d(ic->streams[videostreamidx]->time_base) * 1000;
+
+    ret = avformat_seek_file(ic, -1, INT64_MIN, seek_stamp, INT64_MAX, AVSEEK_FLAG_BACKWARD);
     mutex.unlock();
 
     return (ret >= 0 ? true : false);

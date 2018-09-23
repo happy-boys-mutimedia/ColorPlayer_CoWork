@@ -1,5 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
+#include "stdint.h"
 
 #define FAILED    1
 #define SUCCESS   0
@@ -13,5 +14,7 @@ enum threadState
     THREAD_SEEK,
     THREAD_FLUSH
 };
+
+int64_t getCurrentTimeInMs();
 
 #endif // COMMON_H

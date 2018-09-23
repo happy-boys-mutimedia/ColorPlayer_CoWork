@@ -24,9 +24,9 @@ public:
     ///注释
     bool Open(const char *path);
     void Close();
-    int needClose = 0;
     AVPacket Read();
     int Decode(const AVPacket *pkt, AVFrame *frame);//返回pts
+    void Flush();
     int GetPts(const AVPacket *pkt);//返回码流包的pts
     bool ToRGB(char *out, int outwidth, int outheight);
     int PutFrameToConvert(int StreamID, AVFrame *pFrame);
@@ -46,6 +46,7 @@ public:
     int height;
     int sampleRate = 0;
     int sampleSize = 16;
+    int sampleFormate = 1;
     int channel = 0;
     int frame_size = 0;
     bool isPlay = true;

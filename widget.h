@@ -44,6 +44,7 @@ public slots:
 
 private:
     Ui::Widget *ui;
+    int bOpened;
 
 };
 

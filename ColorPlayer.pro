@@ -25,7 +25,8 @@ SOURCES += main.cpp\
     colorplayer.cpp \
     demuxthread.cpp \
     messagequeue.cpp \
-    common.cpp
+    common.cpp \
+    masterclock.cpp
 
 HEADERS  += widget.h \
     xslider.h \
@@ -38,7 +39,8 @@ HEADERS  += widget.h \
     colorplayer.h \
     demuxthread.h \
     messagequeue.h \
-    common.h
+    common.h \
+    masterclock.h
 
 FORMS    += widget.ui
 

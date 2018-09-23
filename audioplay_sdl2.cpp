@@ -37,7 +37,6 @@ static  Uint32  audio_len = 0;
 static  Uint8  *audio_pos;
 static  char *out_buffer;
 static  Uint32 out_buffer_size;
-static SDL2AudioDisplayThread *pSDL2AudioDisplayThread;
 
 QList<Frame *>audioDisp;
 //-----------------------------------------------------------------------------
@@ -46,7 +45,7 @@ QList<Frame *>audioDisp;
  * stream: A pointer to the audio buffer to be filled
  * len: The length (in bytes) of the audio buffer
 */
-static void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
+void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
 {
     //qDebug()<<"_SDL2_fill_audio_callback IN len "<<len<<"audio_len "<<audio_len;
     //SDL 2.0
@@ -55,7 +54,7 @@ static void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int le
     {
         return;
     }
-
+    //qDebug()<<"callback want read len "<<len;
     len = (len > audio_len ? audio_len : len);	/*  Mix  as  much  data  as  possible  */
 
     SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
@@ -82,13 +81,15 @@ int sdl2_init(void)
     out_buffer = (char *)av_malloc(MAX_AUDIO_FRAME_SIZE * 2);
 
     //SDL_AudioSpec
-    wanted_spec.freq = OUT_SAMPLE_RATE;
+    wanted_spec.freq = XFFmpeg::Get()->sampleRate;//todo
     wanted_spec.format = AUDIO_S16SYS;
     wanted_spec.channels = XFFmpeg::Get()->channel;
     wanted_spec.silence = 0;
-    wanted_spec.samples = XFFmpeg::Get()->frame_size;
+    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1024);
     wanted_spec.callback = _SDL2_fill_audio_callback;
     wanted_spec.userdata = NULL;//pCodecCtx;
+    qDebug()<<"freq "<<wanted_spec.freq<<"format "<<wanted_spec.format<<"channels "<<wanted_spec.channels;
+    qDebug()<<"samples "<<wanted_spec.samples;
     if (SDL_OpenAudio(&wanted_spec, NULL) < 0)
     {
         printf("can't open audio.\n");
@@ -121,9 +122,36 @@ void SDL2AudioDisplayThread::initDisplayQueue(PlayerInfo *pPI)
     pPI->ADispQueue.size = FRAME_QUEUE_SIZE +1;
 }
 
+void SDL2AudioDisplayThread::deinitDisplayQueue(PlayerInfo *pPI)
+{
+    pPI->ADispQueue.Queue->clear();
+}
+
+void SDL2AudioDisplayThread::initMasterClock(MasterClock * pMC)
+{
+    if (pMC != NULL)
+    {
+        pMasterClock = pMC;
+    }
+}
+
 void SDL2AudioDisplayThread::queueMessage(MessageCmd_t MsgCmd)
 {
     pMessage->message_queue(MsgCmd);
+}
+
+void SDL2AudioDisplayThread::stop()
+{
+    qDebug()<<"SDL2AudioDisplayThread::stop()";
+    bStop = 1;
+    bFirstFrame = 1;
+}
+
+void SDL2AudioDisplayThread::flush()
+{
+    bFirstFrame = 1;
+    audio_len = 0;
+    player->ADispQueue.Queue->clear();
 }
 
 void SDL2AudioDisplayThread::run()
@@ -136,7 +164,8 @@ void SDL2AudioDisplayThread::run()
     threadState currentState = THREAD_NONE;
     qDebug()<<"SDL2AudioDisplayThread::run() IN";
 
-    while(1)
+    bStop = 0;
+    while(!bStop)
     {
         if (!player)
         {
@@ -169,33 +198,30 @@ void SDL2AudioDisplayThread::run()
             qDebug()<<"ADispQueue empty";
             continue;
         }
-        //如果上一帧还没有同步出来显示，不拿新的帧
+
         player->ADispQueue.mutex.lock();
-        if ((!player->ADispQueue.Queue->isEmpty()))//&& (isLastFrameSync == 1 || isFirstFrame == 1)
+        if ((!player->ADispQueue.Queue->isEmpty()))
         {
             pFrame = player->ADispQueue.Queue->takeFirst();
         }
         player->ADispQueue.mutex.unlock();
         if (pFrame == NULL)
         {
-            return;
+            continue;
         }
-
 
         XFFmpeg::Get()->PutFrameToConvert(XFFmpeg::Get()->audioStreamidx, pFrame->frame);
         out_buffer_size = XFFmpeg::Get()->ToPCM(out_buffer);
-        //qDebug()<<"ADispQueue get one frame!! out_buffer_size %d"<<out_buffer_size;
+        //qDebug()<<"ADispQueue get one frame!! out_buffer_size "<<out_buffer_size;
         if (out_buffer_size == 0)
         {
             qDebug()<<"ToPCM error !";
             av_frame_unref(pFrame->frame);
+            pFrame->DecState = DecWait;
+            pFrame->DispState = DispOver;
             continue;
         }
-        //显示完成更新帧存状态，解码线程可以拿帧继续解码
-        pFrame->DecState = DecWait;
-        pFrame->DispState = DispOver;
-
-        while(audio_len > 0)//Wait until finish
+        while((audio_len > 0) && !bStop)//Wait until finish
             SDL_Delay(1);
 
         //Set audio buffer (PCM data)
@@ -204,14 +230,33 @@ void SDL2AudioDisplayThread::run()
         audio_len = out_buffer_size;
         audio_pos = audio_chunk;
 
+        if (bFirstFrame)
+        {
+            pMasterClock->set_clock_base(pFrame->frame->pts);
+            bFirstFrame = 0;
+        }
+        else
+        {
+            pMasterClock->set_audio_clock(pFrame->frame->pts);
+        }
+
         //Play
         SDL_PauseAudio(0);
+
+        //显示完成更新帧存状态，解码线程可以拿帧继续解码
+        pFrame->DecState = DecWait;
+        pFrame->DispState = DispOver;
     }
+
+    audio_len = 0;
+    qDebug()<<"SDL2AudioDisplayThread::run() stop!";
 }
 
 SDL2AudioDisplayThread::SDL2AudioDisplayThread()
 {
     player = NULL;
+    bFirstFrame = 1;
+    bStop = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -224,6 +269,12 @@ void SDL2AudioDisplayThread::init()
 {
     sdl2_init();
     qDebug()<<"SDL2AudioDisplayThread::init()";
+}
+
+void SDL2AudioDisplayThread::deinit()
+{
+    SDL_CloseAudio();//Close SDL
+    SDL_Quit();
 }
 
 SDL2AudioDisplayThread::~SDL2AudioDisplayThread()

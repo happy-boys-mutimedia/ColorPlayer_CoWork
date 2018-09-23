@@ -56,6 +56,11 @@ void VideoWidget::paintEvent(QPaintEvent *e)
         }
     }
 
+    if (pPlayerInfo->playerState == PLAYER_STATE_STOP)
+    {
+        return;
+    }
+
     if ((w != width() || h != height()) && image != NULL)
     {
         delete image->bits();
@@ -122,6 +127,6 @@ VideoWidget::~VideoWidget()
 
     if (buf)
     {
-        free((void *)buf);//why?
+        //free((void *)buf);//why?todo
     }
 }

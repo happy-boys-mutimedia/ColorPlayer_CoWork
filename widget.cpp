@@ -52,6 +52,8 @@ Widget::Widget(QWidget *parent) :
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
+
+    bOpened = 0;
 }
 
 Widget::~Widget()
@@ -75,7 +77,6 @@ void Widget::on_OpenButton_clicked()
 void Widget::on_PlayButton_clicked()
 {
     isPlay = !isPlay;
-    //XFFmpeg::Get()->isPlay = isPlay;
     if (isPlay)
     {
         ColorPlayer::Get()->pause();
@@ -110,11 +111,7 @@ void Widget::on_PlaySlider_sliderReleased()
     isPressedSlider = false;
     float pos = 0;
     pos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
-    //printf("pos = %f\n", pos);
-    if (XFFmpeg::Get()->Seek(pos) != true)
-    {
-        //printf("seek error!!\n");
-    }
+    ColorPlayer::Get()->seek(pos);
 }
 
 void Widget::resizeEvent(QResizeEvent *e)
@@ -135,16 +132,17 @@ void Widget::timerEvent(QTimerEvent *e)
 {
     char buf[1024] = {0};
 
-    int pts = XFFmpeg::Get()->pts;
-    int hour = (pts / 1000) / (60 * 60);
-    int min = ((pts / 1000) % (60 * 60)) / 60;
-    int sec = (pts / 1000) % 60;
+    int playTime = ColorPlayer::Get()->get_pos();
+
+    int hour = (playTime / 1000) / (60 * 60);
+    int min = ((playTime / 1000) % (60 * 60)) / 60;
+    int sec = (playTime / 1000) % 60;
     sprintf(buf, "%02d:%02d:%02d", hour, min, sec);
     ui->PlayTime->setText(buf);
 
-    if (XFFmpeg::Get()->totalMs > 0)
+    if (ColorPlayer::Get()->get_play_time_ms() > 0)
     {
-        float rate = (float)XFFmpeg::Get()->pts / (float)XFFmpeg::Get()->totalMs;
+        float rate = (float)playTime / (float)ColorPlayer::Get()->get_play_time_ms();
         if (!isPressedSlider)/*如果没有按下进度条才显示*/
         ui->PlaySlider->setValue(rate * 1000);
     }
@@ -158,16 +156,33 @@ void Widget::openFile(QString name)
     }
     this->setWindowTitle(name);
 
-    if (ColorPlayer::Get()->open(name.toLocal8Bit()) == SUCCESS)
+    if (!bOpened)
     {
-        ColorPlayer::Get()->play();
+        if (ColorPlayer::Get()->open(name.toLocal8Bit()) == SUCCESS)
+        {
+            bOpened = 1;
+            ColorPlayer::Get()->play();
+        }
+        else
+        {
+            QMessageBox::information(this, "err", "file open error");
+        }
     }
     else
     {
-        QMessageBox::information(this, "err", "file open error");
+        ColorPlayer::Get()->close();
+        if (ColorPlayer::Get()->open(name.toLocal8Bit()) == SUCCESS)
+        {
+            bOpened = 1;
+            ColorPlayer::Get()->play();
+        }
+        else
+        {
+            QMessageBox::information(this, "err", "file open error");
+        }
     }
 
-    int totalMs = XFFmpeg::Get()->totalMs;
+    int totalMs = ColorPlayer::Get()->get_play_time_ms();
     char buf[1024] = { 0 };
     int hour = (totalMs / 1000) / (60 * 60);
     int min = ((totalMs / 1000) % (60 * 60)) / 60;
@@ -183,13 +198,20 @@ void Widget::openFile(QString name)
     qDebug()<<"w "<<deskWidth<<"h "<<deskHeight;
 
     //按视频大小调整播放屏幕大小
-    int videoWidth = XFFmpeg::Get()->width;
-    int videoHeight = XFFmpeg::Get()->height;
-    this->move((deskWidth - videoWidth)/2, 0);
-    this->resize(videoWidth, videoHeight);
+    int videoWidth = ColorPlayer::Get()->get_video_width();
+    int videoHeight = ColorPlayer::Get()->get_video_height();
+    if (videoWidth <= deskWidth && videoHeight <= deskHeight)
+    {
+        this->move((deskWidth - videoWidth)/2, 0);
+        this->resize(videoWidth, videoHeight);
+    }
+    else
+    {
+        this->move(0,0);
+        this->resize(deskWidth, deskHeight - 40);
+    }
     qDebug()<<"=======================open successful!!!!!!!=========================";
     isPlay = false;
-    //on_PlayButton_clicked();
 }
 
 void Widget::trigerMenu(QAction* act)

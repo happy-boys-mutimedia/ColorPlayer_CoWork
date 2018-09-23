@@ -5,6 +5,7 @@
 VideoDecodeThread::VideoDecodeThread()
 {
     pPlayerInfo = NULL;
+    bStop = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -13,7 +14,7 @@ VideoDecodeThread::VideoDecodeThread()
     }
 }
 
-static Frame *GetOneValidFrame(FrameQueue *pQueue)
+Frame *VideoDecodeThread::GetOneValidFrame(FrameQueue *pQueue)
 {
     Frame *pFrame = NULL;
     int i;
@@ -43,20 +44,7 @@ static Frame *GetOneValidFrame(FrameQueue *pQueue)
     return pFrame;
 }
 
-static void FlashFrameQueue(FrameQueue *pQueue)
-{
-    int i;
-
-    for (i = 0; i < pQueue->size; i++)
-    {
-        pQueue->queue[i].DecState = DecButt;
-        pQueue->queue[i].DispState = DispButt;
-    }
-
-    return;
-}
-
-static myPacket *GetOnePacket(PacketQueue *pPacketQueue)
+myPacket *VideoDecodeThread::GetOnePacket(PacketQueue *pPacketQueue)
 {
     myPacket *pTemp = NULL;
 
@@ -76,16 +64,73 @@ static myPacket *GetOnePacket(PacketQueue *pPacketQueue)
     return NULL;
 }
 
+int VideoDecodeThread::adjustVideoPts(Frame *pFrame)
+{
+    int deltaPts = 0;
+    int needAdjust = 0;
+    static int actually_delta_pts = 0;
+    static int LastSerial = -1;
+    static int SerialFirstPts = -1;
+    static int LastFramePts = -1;
+    static int cnt = 0;
+
+    if ((XFFmpeg::Get()->fps != 0) && (actually_delta_pts == 0))
+    {
+        actually_delta_pts = 1000 / XFFmpeg::Get()->fps;
+        qDebug()<<"video actually_delta_pts :"<<actually_delta_pts<<"fps:"<<XFFmpeg::Get()->fps;
+    }
+
+    if (isFirstFrame == 1)
+    {
+        //将序列第一帧的pts记录下来
+        SerialFirstPts = pFrame->frame->pts;
+        LastFramePts = SerialFirstPts;
+        isFirstFrame = 0;
+        qDebug()<<"video SerialFirstPts :"<<SerialFirstPts;
+        return 0;
+    }
+    else
+    {
+        deltaPts = pFrame->frame->pts - LastFramePts;
+        //当从实际pts算出的delta与根据fps算出来的理论delta要大很多，说明pts是异常的
+        if (abs(deltaPts - actually_delta_pts) >= 100)
+        {
+            //qDebug()<<"abs : "<<abs(deltaPts - actually_delta_pts);
+            needAdjust = 1;
+        }
+        LastFramePts = pFrame->frame->pts;
+    }
+
+    if (needAdjust == 1)
+    {
+        qDebug()<<"video adjust before pts : "<<pFrame->frame->pts;
+        int temp = (++cnt) * actually_delta_pts;
+        pFrame->frame->pts =  SerialFirstPts + temp;
+        qDebug()<<"video adjust after pts : "<<pFrame->frame->pts;
+        return 0;
+    }
+
+    //qDebug()<<"no needAdjust pts : "<<pFrame->frame->pts;
+    return 0;
+}
+
+void VideoDecodeThread::stop()
+{
+    bStop = 1;
+    isFirstFrame = 1;
+}
+
 void VideoDecodeThread::run()
 {
     int ret = -1;
     Frame *pFrame = NULL;
-    AVPacket AvPkt = {0};
     myPacket *pMyPkt = NULL;
     AVCodecContext *codecCTX = NULL;
     qDebug()<<"VideoDecodeThread::run()";
 
-    while(1)
+    isFirstFrame = 1;
+    bStop = 0;
+    while(!bStop)
     {
         if (!pPlayerInfo)
         {
@@ -122,41 +167,20 @@ void VideoDecodeThread::run()
         }
         codecCTX = XFFmpeg::Get()->ic->streams[XFFmpeg::Get()->videostreamidx]->codec;
         //qDebug()<<"video timebase num "<<codecCTX->time_base.num<<"den "<<codecCTX->time_base.den;
-#if 0//todo
-        if (pMyPkt->AVPkt.data == flush_pkt.data && codecCTX != NULL)
-        {
-            pPlayerInfo->VDispQueueDec.mutex.lock();
-            pPlayerInfo->VDispQueueDec.Queue->clear();
-            pPlayerInfo->VDispQueueDec.mutex.unlock();
-            FlashFrameQueue(&pPlayerInfo->videoFrameQueue);
-            avcodec_flush_buffers(codecCTX);
-            pPlayerInfo->bVideoFlash = 1;
-            qDebug()<<"video flash";
-            continue;
-        }
-#endif
-        if (pMyPkt->serial != pPlayerInfo->videoPacketQueue.serial)
-        {
-            continue;
-        }
 
-        //得到一包有效pkt和frame
         ret = XFFmpeg::Get()->Decode(&pMyPkt->AVPkt, pFrame->frame);
         if (ret == 0)
         {
             av_free_packet(&pMyPkt->AVPkt);
-            //av_packet_unref(&pMyPkt->AVPkt);
-            //qDebug()<<"Video Dec error!";
+            qDebug()<<"Video Dec error! pts:"<<pFrame->frame->pts;
+            pFrame->DecState = DecWait;
+            pFrame->DispState = DispOver;
             continue;
         }
         //qDebug()<<"video ==> pts = "<<pFrame->frame->pts;
-        //av_packet_unref(&pMyPkt->AVPkt);
         av_free_packet(&pMyPkt->AVPkt);
 
-        pFrame->serial = pMyPkt->serial;
-        //adjustAVPts(XFFmpeg::Get()->videostreamidx, pFrame);
         //qDebug()<<"V pFrame->serial = "<<pFrame->serial<<"pMyPkt->serial = "<<pMyPkt->serial;
-
         if (pPlayerInfo->VDispQueue.Queue->count() < pPlayerInfo->VDispQueue.size && pPlayerInfo->VDispQueue.Queue->count() >= 0)
         {
             pPlayerInfo->VDispQueue.mutex.lock();
@@ -166,13 +190,14 @@ void VideoDecodeThread::run()
             pPlayerInfo->VDispQueue.mutex.unlock();
         }
 
-        //释放掉已经拿出来的节点内�?
-        if (/*(pMyPkt->AVPkt.data != flush_pkt.data) && */(pMyPkt != NULL))
+        //free malloc pkt
+        if (pMyPkt != NULL)
         {
             free((void *)pMyPkt);
             pMyPkt = NULL;
         }
     }
+    qDebug()<<"VideoDecodeThread::run() stop!";
 }
 
 void VideoDecodeThread::initPlayerInfo(PlayerInfo *pPI)
@@ -203,6 +228,35 @@ void VideoDecodeThread::initDecodeFrameQueue(PlayerInfo *pPI)
     pPI->videoFrameQueue.size = FRAME_QUEUE_SIZE;
 }
 
+void VideoDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
+{
+    for (int i = 0; i < pPI->videoFrameQueue.size; i++)
+    {
+        if(pPI->videoFrameQueue.queue[i].frame)
+        {
+            av_frame_unref(pPI->videoFrameQueue.queue[i].frame);
+            av_frame_free(&(pPI->videoFrameQueue.queue[i].frame));
+            pPI->videoFrameQueue.queue[i].frame = NULL;
+            pPI->videoFrameQueue.queue[i].DecState = DecButt;
+            pPI->videoFrameQueue.queue[i].DispState = DispButt;
+        }
+    }
+}
+
+void VideoDecodeThread::flushDecodeFrameQueue(PlayerInfo *pPI)
+{
+    for (int i = 0; i < pPI->videoFrameQueue.size; i++)
+    {
+        if(pPI->videoFrameQueue.queue[i].frame)
+        {
+            av_frame_unref(pPI->videoFrameQueue.queue[i].frame);
+            pPI->videoFrameQueue.queue[i].DecState = DecButt;
+            pPI->videoFrameQueue.queue[i].DispState = DispButt;
+        }
+    }
+}
+
+
 VideoDecodeThread::~VideoDecodeThread()
 {
     qDebug()<<"~VideoDecodeThread()";
@@ -215,6 +269,8 @@ VideoDecodeThread::~VideoDecodeThread()
             av_frame_unref(pPlayerInfo->videoFrameQueue.queue[i].frame);
             av_frame_free(&(pPlayerInfo->videoFrameQueue.queue[i].frame));
             pPlayerInfo->videoFrameQueue.queue[i].frame = NULL;
+            pPlayerInfo->videoFrameQueue.queue[i].DecState = DecButt;
+            pPlayerInfo->videoFrameQueue.queue[i].DispState = DispButt;
         }
     }
 

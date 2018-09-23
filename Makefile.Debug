@@ -55,7 +55,8 @@ SOURCES       = main.cpp \
 		colorplayer.cpp \
 		demuxthread.cpp \
 		messagequeue.cpp \
-		common.cpp debug\moc_widget.cpp \
+		common.cpp \
+		masterclock.cpp debug\moc_widget.cpp \
 		debug\moc_xslider.cpp
 OBJECTS       = debug\main.obj \
 		debug\widget.obj \
@@ -70,6 +71,7 @@ OBJECTS       = debug\main.obj \
 		debug\demuxthread.obj \
 		debug\messagequeue.obj \
 		debug\common.obj \
+		debug\masterclock.obj \
 		debug\moc_widget.obj \
 		debug\moc_xslider.obj
 
@@ -84,7 +86,8 @@ DIST          =  widget.h \
 		colorplayer.h \
 		demuxthread.h \
 		messagequeue.h \
-		common.h main.cpp \
+		common.h \
+		masterclock.h main.cpp \
 		widget.cpp \
 		xslider.cpp \
 		ffmpeg.cpp \
@@ -96,7 +99,8 @@ DIST          =  widget.h \
 		colorplayer.cpp \
 		demuxthread.cpp \
 		messagequeue.cpp \
-		common.cpp
+		common.cpp \
+		masterclock.cpp
 QMAKE_TARGET  = ColorPlayer
 DESTDIR        = debug\ #avoid trailing-slash linebreak
 TARGET         = ColorPlayer.exe
@@ -165,7 +169,7 @@ dist:
 	$(ZIP) ColorPlayer.zip $(SOURCES) $(DIST) ColorPlayer.pro F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\spec_pre.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\common\angle.conf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\common\msvc-base.conf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\common\msvc-desktop.conf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\qconfig.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dcore.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dcore_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dinput.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dinput_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dlogic.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dlogic_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquick.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquick_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquickinput.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquickinput_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquickrender.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3dquickrender_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3drender.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_3drender_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axbase.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axbase_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axcontainer.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axcontainer_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axserver.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_axserver_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_bluetooth.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_bluetooth_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_bootstrap_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_clucene_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_concurrent.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_concurrent_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_core.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_core_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_dbus.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_dbus_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_designer.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_designer_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_designercomponents_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_gui.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_gui_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_help.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_help_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_labscontrols_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_labstemplates_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_location.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_location_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_multimedia.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_multimedia_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_multimediawidgets.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_multimediawidgets_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_network.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_network_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_nfc.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_nfc_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_opengl.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_opengl_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_openglextensions.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_openglextensions_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_platformsupport_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_positioning.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_positioning_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_printsupport.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_printsupport_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qml.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qml_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qmldevtools_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qmltest.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qmltest_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_qtmultimediaquicktools_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_quick.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_quick_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_quickparticles_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_quickwidgets.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_quickwidgets_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_script.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_script_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_scripttools.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_scripttools_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_sensors.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_sensors_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_serialbus.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_serialbus_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_serialport.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_serialport_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_sql.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_sql_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_svg.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_svg_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_testlib.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_testlib_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_uiplugin.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_uitools.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_uitools_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webchannel.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webchannel_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webengine.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webengine_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webenginecore.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webenginecore_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webenginecoreheaders_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webenginewidgets.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webenginewidgets_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_websockets.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_websockets_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webview.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_webview_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_widgets.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_widgets_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_winextras.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_winextras_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_xml.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_xml_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_xmlpatterns.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_xmlpatterns_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\modules\qt_lib_zlib_private.pri F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\qt_functions.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\qt_config.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\win32\qt_config.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\win32-msvc2013\qmake.conf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\spec_post.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\exclusive_builds.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\default_pre.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\win32\default_pre.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\resolve_config.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\exclusive_builds_post.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\default_post.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\build_pass.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\qml_debug.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\win32\rtti.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\precompile_header.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\warn_on.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\qt.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\resources.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\moc.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\win32\opengl.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\uic.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\file_copies.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\win32\windows.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\testcase_targets.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\exceptions.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\yacc.prf F:\software_install_new\Qt5.6.2\5.6\msvc2013\mkspecs\features\lex.prf ColorPlayer.pro F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\qtmaind.prl F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\Qt5Widgetsd.prl F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\Qt5Multimediad.prl F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\Qt5Guid.prl F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\Qt5Networkd.prl F:\software_install_new\Qt5.6.2\5.6\msvc2013\lib\Qt5Cored.prl  NO_PCH_SOURCES RESOURCES HEADERS SOURCES OBJECTIVE_SOURCES FORMS YACCSOURCES YACCSOURCES LEXSOURCES 
 
 clean: compiler_clean 
-	-$(DEL_FILE) debug\main.obj debug\widget.obj debug\xslider.obj debug\ffmpeg.obj debug\videowidget.obj debug\audioplay_sdl2.obj debug\audiodecodethread.obj debug\videodecodethread.obj debug\videooutput.obj debug\colorplayer.obj debug\demuxthread.obj debug\messagequeue.obj debug\common.obj debug\moc_widget.obj debug\moc_xslider.obj
+	-$(DEL_FILE) debug\main.obj debug\widget.obj debug\xslider.obj debug\ffmpeg.obj debug\videowidget.obj debug\audioplay_sdl2.obj debug\audiodecodethread.obj debug\videodecodethread.obj debug\videooutput.obj debug\colorplayer.obj debug\demuxthread.obj debug\messagequeue.obj debug\common.obj debug\masterclock.obj debug\moc_widget.obj debug\moc_xslider.obj
 	-$(DEL_FILE) debug\ColorPlayer.exp debug\ColorPlayer.vc.pdb debug\ColorPlayer.ilk debug\ColorPlayer.idb
 
 distclean: clean 
@@ -574,6 +578,7 @@ ui_widget.h: widget.ui \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtWidgets\qslider.h \
@@ -1022,6 +1027,7 @@ debug\widget.obj: widget.cpp widget.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		xslider.h \
@@ -1291,7 +1297,8 @@ debug\ffmpeg.obj: ffmpeg.cpp ffmpeg.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtGui\qguiapplication.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtGui\qinputmethod.h \
 		colorplayer.h \
-		common.h
+		common.h \
+		masterclock.h
 
 debug\videowidget.obj: videowidget.cpp VideoWidget.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtWidgets\qwidget.h \
@@ -1442,6 +1449,7 @@ debug\videowidget.obj: videowidget.cpp VideoWidget.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtGui\QPainter \
@@ -1546,6 +1554,7 @@ debug\audioplay_sdl2.obj: audioplay_sdl2.cpp audioplay_sdl2.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QDebug \
@@ -1693,6 +1702,7 @@ debug\audiodecodethread.obj: audiodecodethread.cpp audiodecodethread.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QDebug \
@@ -1797,6 +1807,7 @@ debug\videodecodethread.obj: videodecodethread.cpp videodecodethread.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libswresample\version.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QDebug \
@@ -1874,6 +1885,7 @@ debug\videooutput.obj: videooutput.cpp videooutput.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnumeric.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qversiontagging.h \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlist.h \
@@ -1978,6 +1990,7 @@ debug\colorplayer.obj: colorplayer.cpp colorplayer.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnumeric.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qversiontagging.h \
 		common.h \
+		masterclock.h \
 		audioplay_sdl2.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QThread \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qthread.h \
@@ -2127,6 +2140,7 @@ debug\demuxthread.obj: demuxthread.cpp demuxthread.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnumeric.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qversiontagging.h \
 		common.h \
+		masterclock.h \
 		messagequeue.h \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QList \
 		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlist.h \
@@ -2268,7 +2282,140 @@ debug\common.obj: common.cpp G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\mathematics.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\intfloat.h \
 		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\log.h \
-		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\pixfmt.h
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\pixfmt.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QTime \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qdatetime.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstring.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qchar.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qglobal.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qconfig.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qfeatures.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qsystemdetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qprocessordetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qcompilerdetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qtypeinfo.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qtypetraits.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qisenum.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qsysinfo.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlogging.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qflags.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbasicatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_bootstrap.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qgenericatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_cxx11.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_gcc.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_msvc.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv7.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv6.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv5.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_ia64.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_x86.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_unix.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qglobalstatic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qmutex.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnumeric.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qversiontagging.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbytearray.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qrefcount.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnamespace.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qarraydata.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringbuilder.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qshareddata.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qhash.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qiterator.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qalgorithms.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qhashfunctions.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qpair.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbytearraylist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringlist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qregexp.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringmatcher.h
+
+debug\masterclock.obj: masterclock.cpp masterclock.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QMutex \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qmutex.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qglobal.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qconfig.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qfeatures.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qsystemdetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qprocessordetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qcompilerdetection.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qtypeinfo.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qtypetraits.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qisenum.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qsysinfo.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlogging.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qflags.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbasicatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_bootstrap.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qgenericatomic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_cxx11.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_gcc.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_msvc.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv7.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv6.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_armv5.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_ia64.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_x86.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qatomic_unix.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qglobalstatic.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnumeric.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qversiontagging.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\common.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\attributes.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\macros.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavcodec\version.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\version.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\avconfig.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\mem.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\error.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\avutil.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\rational.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\mathematics.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\intfloat.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\log.h \
+		G:\QT5.6.2\ffmpeg-3.2.2-win32-dev\include\libavutil\pixfmt.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\QDebug \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qdebug.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qalgorithms.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qhash.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qchar.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qiterator.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qrefcount.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qarraydata.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qhashfunctions.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qpair.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbytearraylist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qbytearray.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qnamespace.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstring.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringbuilder.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringlist.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qregexp.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qstringmatcher.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qmap.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qtextstream.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qiodevice.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qobject.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qobjectdefs.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qobjectdefs_impl.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qcoreevent.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qscopedpointer.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qmetatype.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qvarlengtharray.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qcontainerfwd.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qobject_impl.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qlocale.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qvariant.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qshareddata.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qvector.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qpoint.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qset.h \
+		F:\software_install_new\Qt5.6.2\5.6\msvc2013\include\QtCore\qcontiguouscache.h
 
 debug\moc_widget.obj: debug\moc_widget.cpp 
 

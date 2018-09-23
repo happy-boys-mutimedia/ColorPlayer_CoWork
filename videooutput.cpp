@@ -17,6 +17,9 @@ enum {
 VideoOutput::VideoOutput()
 {
     pPlayerInfo = NULL;
+    bVideoFreeRun = 0;
+    pMasterClock = NULL;
+    bStop = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -36,6 +39,93 @@ VideoOutput::~VideoOutput()
     }
 }
 
+int VideoOutput::NeedAVSync(MessageCmd_t MsgCmd, int bPaused)
+{
+    if ((MsgCmd.cmd == MESSAGE_CMD_PAUSE) || bPaused || bVideoFreeRun)
+    {
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+int VideoOutput::DecideKeepFrame(int need_av_sync, int64_t pts)
+{
+    int64_t late = 0;
+
+    if (!need_av_sync)
+        return 1;
+
+    late = CalcSyncLate(pts);
+    if (late < 0)
+    {
+        qDebug()<<"video pts is late need drop this frame.";
+        return 0;
+    }
+
+    return 1;
+}
+
+int VideoOutput::CheckOutWaitOrDisplay(int64_t pts)
+{
+    int64_t late = 0;
+    int beyond_tolerance_threshold = 15;//just test
+
+    late = CalcSyncLate(pts);
+    if (late >= 0)
+    {
+        // video beyond master clock
+        if (late <= beyond_tolerance_threshold)
+        {
+            //qDebug()<<"CheckOutWaitOrDisplay go disp "<<late;
+            return SYNC_GO_DISP;
+        }
+        else
+        {
+            //qDebug()<<"CheckOutWaitOrDisplay go wait beyond:"<<late;
+            // video beyond master clock too much need delay.
+            msleep(1);
+            return SYNC_GO_WAIT;
+        }
+    }
+    return SYNC_GO_DISP;
+}
+
+int64_t VideoOutput::CalcSyncLate(int64_t pts)
+{
+    int64_t current_master_time = 0;
+    int64_t next_video_time = 0;
+
+    current_master_time = pMasterClock->get_master_clock();
+    next_video_time = pMasterClock->convert_to_system_time(pts);
+
+    //qDebug()<<"current_master_time "<<current_master_time<<"next_video_time "<<next_video_time;
+    // return next video pts is beyond master time or not.
+    return (next_video_time - current_master_time);
+}
+
+void VideoOutput::stop()
+{
+    bStop = 1;
+}
+
+void VideoOutput::flush()
+{
+    if (pPauseFrame)
+    {
+        pPauseFrame->DecState = DecWait;
+        pPauseFrame->DispState = DispOver;
+        pPauseFrame = NULL;
+    }
+
+    bVideoFreeRun = 0;
+
+    pPlayerInfo->Video2WidgetQueue.Queue->clear();
+    pPlayerInfo->VDispQueue.Queue->clear();
+}
+
 void VideoOutput::run()
 {
     int sync_status = SYNC_GO_NEXT;
@@ -44,36 +134,16 @@ void VideoOutput::run()
     Msgcmd.cmdType = MESSAGE_QUEUE_TYPES;
 
     threadState currentState = THREAD_NONE;
+    int need_av_sync = 0;
+    int bPaused = 0;
 
-    while (1)
+    qDebug()<<"VideoOutput::run() IN";
+    bStop = 0;
+    while (!bStop)
     {
-#if 0
-        pMessage->message_dequeue(&Msgcmd);
-
-        if (Msgcmd.cmd == MESSAGE_CMD_PAUSE)
-        {
-            msleep(10);
-            continue;
-        }
-
-        if (Msgcmd.cmd == MESSAGE_CMD_STOP)
-            break;
-
-        if (Msgcmd.cmd == MESSAGE_CMD_FLUSH)
-        {
-            //todo
-        }
-
-        // read queued video frame
-        if (sync_status == SYNC_GO_NEXT)
-        {
-            //todo av sync
-        }
-#endif
-
         static Frame *pFrame = NULL;
-        //qDebug()<<"video timeSetEvent: "<<getTimeInMs();
-        if (!pPlayerInfo || !pPlayerInfo->isInitAll)
+
+        if (!pPlayerInfo)
         {
             //qDebug()<<"not init ! ";
             msleep(10);
@@ -86,6 +156,7 @@ void VideoOutput::run()
             {
                 qDebug()<<"VideoOutput get resume cmd~~ ";
                 currentState = THREAD_START;
+                bPaused = 0;
             }
             //qDebug()<<"VideoOutput THREAD_PAUSE~~ ";
             msleep(10);
@@ -96,61 +167,84 @@ void VideoOutput::run()
         {
             qDebug()<<"VideoOutput get pause cmd~~ ";
             currentState = THREAD_PAUSE;
+            bPaused = 1;
             msleep(10);
             continue;
         }
 
-        pPlayerInfo->VDispQueue.mutex.lock();
-        if (pPlayerInfo->VDispQueue.Queue->isEmpty())
+        // read queued video frame
+        if (sync_status == SYNC_GO_NEXT)
         {
-            //qDebug()<<"VDispQueue empty";
+            pPlayerInfo->VDispQueue.mutex.lock();
+            if (pPlayerInfo->VDispQueue.Queue->isEmpty())
+            {
+                qDebug()<<"VDispQueue empty";
+                pPlayerInfo->VDispQueue.mutex.unlock();
+                msleep(10);
+                continue;
+            }
+
+            pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();
             pPlayerInfo->VDispQueue.mutex.unlock();
-            msleep(10);
-            continue;
-        }
-        //qDebug()<<"get one frame form VDispQueue";
-        pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();
+            if (pFrame == NULL || pFrame->frame == NULL)
+            {
+                qDebug()<<"pFrame == NULL";
+                msleep(10);
+                continue;
+            }
 
-        pPlayerInfo->VDispQueue.mutex.unlock();
-
-        if (pFrame == NULL || pFrame->frame == NULL)
-        {
-            qDebug()<<"pFrame == NULL";
-            msleep(10);
-            continue;
+            int KeepFrame = 1;
+            need_av_sync = NeedAVSync(Msgcmd, bPaused);
+            //need_av_sync = 0;//do not avsync
+            KeepFrame = DecideKeepFrame(need_av_sync, pFrame->frame->pts);
+            //qDebug()<<"VDispQueue takeFirst() KeepFrame "<<KeepFrame<<"need_av_sync "<<need_av_sync;
+            if (!KeepFrame)
+            {
+                sync_status = SYNC_GO_DROP;
+            }
+            else if (!need_av_sync)
+            {
+                sync_status = SYNC_GO_DISP;
+            }
+            else
+            {
+                sync_status = SYNC_GO_WAIT;
+            }
         }
-    #if 0// video free run
-        audioPts = getClockPts(&(pPlayerInfo->audclk));//以音频pts为准进行同步
-        ret = isSyncVideo2Audio(pFrame->frame->pts, audioPts);
-        if (ret == needDiscard)
+
+        //check out need wait or display this frame
+        if (sync_status == SYNC_GO_WAIT)
         {
-            //需要将此帧丢弃
-            isLastFrameSync = 1;
+            sync_status = CheckOutWaitOrDisplay(pFrame->frame->pts);
+            //qDebug()<<"4444"<<"sync_status "<<sync_status;
+        }
+
+        if (sync_status == SYNC_GO_DROP)
+        {
+            sync_status = SYNC_GO_FREE;
+        }
+
+        if (sync_status == SYNC_GO_DISP)
+        {
+            pPlayerInfo->Video2WidgetQueue.mutex.lock();
+            if (pPlayerInfo->Video2WidgetQueue.Queue->count() < pPlayerInfo->Video2WidgetQueue.size)
+            {
+                pPlayerInfo->Video2WidgetQueue.Queue->append(pFrame);
+            }
+            pPlayerInfo->Video2WidgetQueue.mutex.unlock();
+
+            sync_status = SYNC_GO_NEXT;
+        }
+
+        if (sync_status == SYNC_GO_FREE)
+        {
+            //change state
             pFrame->DecState = DecWait;
             pFrame->DispState = DispOver;
-            qDebug()<<"video needDiscard frame";
-            return;
+            sync_status = SYNC_GO_NEXT;
         }
-        else if (ret == needDelay)
-        {
-            isLastFrameSync = 0;
-            return;
-        }
-    #endif
-
-        pPlayerInfo->Video2WidgetQueue.mutex.lock();
-        if (pPlayerInfo->Video2WidgetQueue.Queue->count() < pPlayerInfo->Video2WidgetQueue.size)
-        {
-            pPlayerInfo->Video2WidgetQueue.Queue->append(pFrame);
-        }
-        pPlayerInfo->Video2WidgetQueue.mutex.unlock();
-
-        //显示完成更新帧存状态，解码线程可以拿帧继续解码
-        //pFrame->DecState = DecWait;
-        //pFrame->DispState = DispOver;
-
     }
-    //todo free/close
+    qDebug()<<"VideoOutput::run() stop!";
 }
 
 void VideoOutput::initPlayerInfo(PlayerInfo *pPI)
@@ -169,6 +263,20 @@ void VideoOutput::initDisplayQueue(PlayerInfo *pPI)
     pPI->VDispQueue.size = FRAME_QUEUE_SIZE + 1;
     pPI->Video2WidgetQueue.Queue = &videoDispSync;
     pPI->Video2WidgetQueue.size = FRAME_QUEUE_SIZE + 1;
+}
+
+void VideoOutput::deinitDisplayQueue(PlayerInfo *pPI)
+{
+    pPI->Video2WidgetQueue.Queue->clear();
+    pPI->VDispQueue.Queue->clear();
+}
+
+void VideoOutput::initMasterClock(MasterClock * pMC)
+{
+    if (pMC != NULL)
+    {
+        pMasterClock = pMC;
+    }
 }
 
 void VideoOutput::queueMessage(MessageCmd_t MsgCmd)

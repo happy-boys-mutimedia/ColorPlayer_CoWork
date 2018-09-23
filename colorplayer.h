@@ -2,6 +2,8 @@
 #define COLORPLAYER_H
 #include "ffmpeg.h"
 #include "common.h"
+#include "masterclock.h"
+#include "stdint.h"
 
 //#define FAILED    1
 //#define SUCCESS   0
@@ -100,24 +102,14 @@ enum PlayerState
 };
 
 typedef struct PlayerInfo {
-    Clock audclk;
-    Clock vidclk;
-    //Clock extclk;
-
     PacketQueue videoPacketQueue;
     PacketQueue audioPacketQueue;
-    int bVideoFlash;
-    int bVideoDispFlash;
-    int bAudioFlash;
-    int canReadFile;
-    int isInitAll;
-    PlayerState playerState;
     DispFrameQueue VDispQueue;
-    DispFrameQueue Video2WidgetQueue;
     DispFrameQueue ADispQueue;
+    DispFrameQueue Video2WidgetQueue;
     FrameQueue videoFrameQueue;
-    FrameQueue subpq;
     FrameQueue audioFrameQueue;
+    PlayerState playerState;
     int paused;
 }PlayerInfo;
 
@@ -137,9 +129,13 @@ public:
     int resume();
     int stop();
     int set_pos();
-    int get_pos();
+    int64_t get_pos();
+    int get_play_time_ms();
+    int get_video_width();
+    int get_video_height();
     int cancel_seek();
-    int seek();
+    void flush();
+    int seek(float position);
     int set_speed();
     int get_speed();
     PlayerInfo *get_player_Instanse();
@@ -149,6 +145,7 @@ private:
     void init_context();
     void deinit_context();
     PlayerInfo *player;
+    MasterClock *pMasterClock;
 };
 
 

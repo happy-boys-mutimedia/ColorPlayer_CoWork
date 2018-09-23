@@ -5,6 +5,7 @@
 AudioDecodeThread::AudioDecodeThread()
 {
     pPlayerInfo = NULL;
+    bStop = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -13,7 +14,7 @@ AudioDecodeThread::AudioDecodeThread()
     }
 }
 
-static Frame *GetOneValidFrame(FrameQueue *pQueue)
+Frame *AudioDecodeThread::GetOneValidFrame(FrameQueue *pQueue)
 {
     Frame *pFrame = NULL;
     int i;
@@ -43,20 +44,7 @@ static Frame *GetOneValidFrame(FrameQueue *pQueue)
     return pFrame;
 }
 
-static void FlashFrameQueue(FrameQueue *pQueue)
-{
-    int i;
-
-    for (i = 0; i < pQueue->size; i++)
-    {
-        pQueue->queue[i].DecState = DecButt;
-        pQueue->queue[i].DispState = DispButt;
-    }
-
-    return;
-}
-
-static myPacket *GetOnePacket(PacketQueue *pPacketQueue)
+myPacket *AudioDecodeThread::GetOnePacket(PacketQueue *pPacketQueue)
 {
     myPacket *pTemp = NULL;
 
@@ -76,20 +64,80 @@ static myPacket *GetOnePacket(PacketQueue *pPacketQueue)
     return NULL;
 }
 
+int AudioDecodeThread::adjustAudioPts(Frame *pFrame)
+{
+    int deltaPts = 0;
+    int needAdjust = 0;
+    AVCodecContext *codecCTX = NULL;
+    static int actually_delta_pts = 0;
+    static int LastSerial = -1;
+    static int SerialFirstPts = -1;
+    static int LastFramePts = -1;
+    static int cnt = 0;
+
+    codecCTX = XFFmpeg::Get()->ic->streams[XFFmpeg::Get()->audioStreamidx]->codec;
+    if (actually_delta_pts == 0)
+    {
+        actually_delta_pts = ((codecCTX->frame_size * 1000 ) / codecCTX->sample_rate);
+        //qDebug()<<" Auido actually_delta_pts :"<<actually_delta_pts;
+    }
+
+    if (isFirstFrame == 1)
+    {
+        //将序列第一帧的pts记录下来
+        SerialFirstPts = pFrame->frame->pts;
+        LastFramePts = SerialFirstPts;
+        isFirstFrame = 0;
+        actually_delta_pts = 0;
+        qDebug()<<"audio adjustAudioPts SerialFirstPts :"<<SerialFirstPts;
+        return 0;
+    }
+    else
+    {
+        deltaPts = pFrame->frame->pts - LastFramePts;
+        //当从实际pts算出的delta与根据fps算出来的理论delta要大很多或者小很多，说明pts是异常的
+        if (abs(deltaPts - actually_delta_pts) >= 100)
+        {
+            qDebug()<<"deltaPts "<<deltaPts;
+            qDebug()<<"actually_delta_pts "<<actually_delta_pts;
+            qDebug()<<"AAAA abs : "<<abs(deltaPts - actually_delta_pts);
+            needAdjust = 1;
+        }
+        LastFramePts = pFrame->frame->pts;
+    }
+
+    if (needAdjust == 1)
+    {
+        qDebug()<<"audio adjust before pts : "<<pFrame->frame->pts;
+        int temp = (++cnt) * actually_delta_pts;
+        pFrame->frame->pts =  SerialFirstPts + temp;
+        qDebug()<<"audio adjust after pts : "<<pFrame->frame->pts;
+        return 0;
+    }
+
+    //qDebug()<<"no needAdjust pts : "<<pFrame->frame->pts;
+    return 0;
+
+}
+
+void AudioDecodeThread::stop()
+{
+    bStop = 1;
+    isFirstFrame = 1;
+}
+
 void AudioDecodeThread::run()
 {
     int ret = -1;
     Frame *pFrame = NULL;
-    AVPacket AvPkt = {0};
-    myPacket MyPkt = {0};
     myPacket *pMyPkt = NULL;
-    AVCodecContext *codecCTX = NULL;
-    AVFormatContext *ictx = NULL;
-    qDebug()<<"AudioDecodeThread in";
 
-    while(1)
+    qDebug()<<"AudioDecodeThread::run() in";
+
+    bStop = 0;
+    while(!bStop)
     {
-        if ((pPlayerInfo == NULL) || !pPlayerInfo->isInitAll)
+        if (pPlayerInfo == NULL)
         {
             msleep(10);
             qDebug()<<"AudioDecodeThread error";
@@ -98,7 +146,7 @@ void AudioDecodeThread::run()
 
         if (pPlayerInfo->audioPacketQueue.Queue->isEmpty())
         {
-            //qDebug()<<" audio Raw Queue empty !! :";
+            qDebug()<<" audio Raw Queue empty !! :";
             msleep(10);
             continue;
         }
@@ -112,7 +160,7 @@ void AudioDecodeThread::run()
 
         if ((pMyPkt = GetOnePacket(&(pPlayerInfo->audioPacketQueue))) == NULL)
         {
-            //qDebug()<<" Audio GetOnePacket fail";
+            qDebug()<<" Audio GetOnePacket fail";
             msleep(10);
             continue;
         }
@@ -122,48 +170,17 @@ void AudioDecodeThread::run()
             msleep(10);
             continue;
         }
-        codecCTX = XFFmpeg::Get()->ic->streams[XFFmpeg::Get()->audioStreamidx]->codec;
-        //qDebug()<<"audio timebase num "<<codecCTX->time_base.num<<"den "<<codecCTX->time_base.den;
-        //qDebug()<<"frame_size"<<codecCTX->frame_size<<"sample_rate"<<codecCTX->sample_rate;
-#if 0//todo
-        if (pMyPkt->AVPkt.data == flush_pkt.data && codecCTX != NULL)
-        {
-            pPlayerInfo->ADispQueue.mutex.lock();
-            pPlayerInfo->ADispQueue.Queue->clear();
-            pPlayerInfo->ADispQueue.mutex.unlock();
-            FlashFrameQueue(&pPlayerInfo->audioFrameQueue);
-            avcodec_flush_buffers(codecCTX);
-            pPlayerInfo->bAudioFlash = 1;
-            qDebug()<<"audio flash";
-            continue;
-        }
-#endif
-        if (pMyPkt->serial != pPlayerInfo->audioPacketQueue.serial)
-        {
-            qDebug()<<"audio MyPkt.serial "<<pMyPkt->serial<<"serial"<<pPlayerInfo->audioPacketQueue.serial;
-            continue;
-        }
-        else
-        {
-            //qDebug()<<"AA MyPkt.serial "<<MyPkt.serial<<"serial"<<pVS->AudioPacketQueue.serial;
-        }
 
-        //得到一包有效pkt和frame
         ret = XFFmpeg::Get()->Decode(&pMyPkt->AVPkt, pFrame->frame);
         if (ret == 0)
         {
             qDebug()<<"Audio Dec error!";
-            //av_packet_unref(&pMyPkt->AVPkt);
             av_free_packet(&pMyPkt->AVPkt);
             continue;
         }
-        //qDebug()<<"Aduio ==> pts = "<<pFrame->frame->pts<<"count = "<<pVS->ADispQueue.Queue->count()<<"s ="<<pVS->ADispQueue.size;
-        //av_packet_unref(&pMyPkt->AVPkt);
         av_free_packet(&pMyPkt->AVPkt);
 
-        pFrame->serial = pMyPkt->serial;
-        //adjustAVPts(XFFmpeg::Get()->audioStreamidx, pFrame);
-        //qDebug()<<"A pFrame->serial = "<<pFrame->serial<<"pMyPkt->serial = "<<pMyPkt->serial;
+        //qDebug()<<"Aduio ==> pts = "<<pFrame->frame->pts;
 
         if (pPlayerInfo->ADispQueue.Queue->count() < pPlayerInfo->ADispQueue.size)
         {
@@ -175,13 +192,14 @@ void AudioDecodeThread::run()
             pPlayerInfo->ADispQueue.mutex.unlock();
         }
 
-        //释放掉已经拿出来的节点内�?
-        if (/*(pMyPkt->AVPkt.data != flush_pkt.data) && */(pMyPkt != NULL))
+        //free malloc pkt
+        if (pMyPkt != NULL)
         {
             free((void *)pMyPkt);
             pMyPkt = NULL;
         }
     }
+    qDebug()<<"AudioDecodeThread stop!";
 
 }
 
@@ -200,6 +218,34 @@ void AudioDecodeThread::initDecodeFrameQueue(PlayerInfo *pPI)
     pPI->audioFrameQueue.size = FRAME_QUEUE_SIZE;
 
     return;
+}
+
+void AudioDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
+{
+    for (int i = 0; i < pPI->audioFrameQueue.size; i++)
+    {
+        if(pPI->audioFrameQueue.queue[i].frame)
+        {
+            av_frame_unref(pPI->audioFrameQueue.queue[i].frame);
+            av_frame_free(&(pPI->audioFrameQueue.queue[i].frame));
+            pPI->audioFrameQueue.queue[i].frame = NULL;
+            pPI->audioFrameQueue.queue[i].DecState = DecButt;
+            pPI->audioFrameQueue.queue[i].DispState = DispButt;
+        }
+    }
+}
+
+void AudioDecodeThread::flushDecodeFrameQueue(PlayerInfo *pPI)
+{
+    for (int i = 0; i < pPI->audioFrameQueue.size; i++)
+    {
+        if(pPI->audioFrameQueue.queue[i].frame)
+        {
+            av_frame_unref(pPI->audioFrameQueue.queue[i].frame);
+            pPI->audioFrameQueue.queue[i].DecState = DecButt;
+            pPI->audioFrameQueue.queue[i].DispState = DispButt;
+        }
+    }
 }
 
 void AudioDecodeThread::initPlayerInfo(PlayerInfo *pPI)
@@ -226,6 +272,8 @@ AudioDecodeThread::~AudioDecodeThread()
             av_frame_unref(pPlayerInfo->audioFrameQueue.queue[i].frame);
             av_frame_free(&(pPlayerInfo->audioFrameQueue.queue[i].frame));
             pPlayerInfo->audioFrameQueue.queue[i].frame = NULL;
+            pPlayerInfo->audioFrameQueue.queue[i].DecState = DecButt;
+            pPlayerInfo->audioFrameQueue.queue[i].DispState = DispButt;
         }
     }
 
