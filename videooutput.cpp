@@ -267,8 +267,11 @@ void VideoOutput::initDisplayQueue(PlayerInfo *pPI)
 
 void VideoOutput::deinitDisplayQueue(PlayerInfo *pPI)
 {
-    pPI->Video2WidgetQueue.Queue->clear();
-    pPI->VDispQueue.Queue->clear();
+    if (pPI)
+    {
+        pPI->Video2WidgetQueue.Queue->clear();
+        pPI->VDispQueue.Queue->clear();
+    }
 }
 
 void VideoOutput::initMasterClock(MasterClock * pMC)

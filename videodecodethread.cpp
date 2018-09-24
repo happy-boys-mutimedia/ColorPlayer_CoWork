@@ -230,15 +230,18 @@ void VideoDecodeThread::initDecodeFrameQueue(PlayerInfo *pPI)
 
 void VideoDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
 {
-    for (int i = 0; i < pPI->videoFrameQueue.size; i++)
+    if (pPI)
     {
-        if(pPI->videoFrameQueue.queue[i].frame)
+        for (int i = 0; i < pPI->videoFrameQueue.size; i++)
         {
-            av_frame_unref(pPI->videoFrameQueue.queue[i].frame);
-            av_frame_free(&(pPI->videoFrameQueue.queue[i].frame));
-            pPI->videoFrameQueue.queue[i].frame = NULL;
-            pPI->videoFrameQueue.queue[i].DecState = DecButt;
-            pPI->videoFrameQueue.queue[i].DispState = DispButt;
+            if(pPI->videoFrameQueue.queue[i].frame)
+            {
+                av_frame_unref(pPI->videoFrameQueue.queue[i].frame);
+                av_frame_free(&(pPI->videoFrameQueue.queue[i].frame));
+                pPI->videoFrameQueue.queue[i].frame = NULL;
+                pPI->videoFrameQueue.queue[i].DecState = DecButt;
+                pPI->videoFrameQueue.queue[i].DispState = DispButt;
+            }
         }
     }
 }

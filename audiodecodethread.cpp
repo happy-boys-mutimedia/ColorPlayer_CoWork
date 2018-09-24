@@ -222,15 +222,18 @@ void AudioDecodeThread::initDecodeFrameQueue(PlayerInfo *pPI)
 
 void AudioDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
 {
-    for (int i = 0; i < pPI->audioFrameQueue.size; i++)
+    if (pPI)
     {
-        if(pPI->audioFrameQueue.queue[i].frame)
+        for (int i = 0; i < pPI->audioFrameQueue.size; i++)
         {
-            av_frame_unref(pPI->audioFrameQueue.queue[i].frame);
-            av_frame_free(&(pPI->audioFrameQueue.queue[i].frame));
-            pPI->audioFrameQueue.queue[i].frame = NULL;
-            pPI->audioFrameQueue.queue[i].DecState = DecButt;
-            pPI->audioFrameQueue.queue[i].DispState = DispButt;
+            if(pPI->audioFrameQueue.queue[i].frame)
+            {
+                av_frame_unref(pPI->audioFrameQueue.queue[i].frame);
+                av_frame_free(&(pPI->audioFrameQueue.queue[i].frame));
+                pPI->audioFrameQueue.queue[i].frame = NULL;
+                pPI->audioFrameQueue.queue[i].DecState = DecButt;
+                pPI->audioFrameQueue.queue[i].DispState = DispButt;
+            }
         }
     }
 }

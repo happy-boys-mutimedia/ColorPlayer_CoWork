@@ -124,7 +124,8 @@ void SDL2AudioDisplayThread::initDisplayQueue(PlayerInfo *pPI)
 
 void SDL2AudioDisplayThread::deinitDisplayQueue(PlayerInfo *pPI)
 {
-    pPI->ADispQueue.Queue->clear();
+    if (pPI)
+        pPI->ADispQueue.Queue->clear();
 }
 
 void SDL2AudioDisplayThread::initMasterClock(MasterClock * pMC)

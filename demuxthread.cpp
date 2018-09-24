@@ -166,8 +166,11 @@ int DemuxThread::initRawQueue(PlayerInfo *pPI)
 void DemuxThread::deinitRawQueue(PlayerInfo *pPI)
 {
     bFirstVideoPkt = 1;
-    flushPacketQueue(&pPI->audioPacketQueue);
-    flushPacketQueue(&pPI->videoPacketQueue);
+    if (pPI)
+    {
+        flushPacketQueue(&pPI->audioPacketQueue);
+        flushPacketQueue(&pPI->videoPacketQueue);
+    }
 }
 
 void DemuxThread::queueMessage(MessageCmd_t MsgCmd)

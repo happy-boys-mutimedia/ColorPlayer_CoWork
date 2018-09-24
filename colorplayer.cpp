@@ -10,6 +10,7 @@
 ColorPlayer::ColorPlayer()
 {
     player = NULL;
+    bOpened = 0;
     pMasterClock = new MasterClock();
 }
 
@@ -50,6 +51,7 @@ int ColorPlayer::open(const char *url)
 
     pMasterClock->open(AUDIO_MASTER);
 
+    bOpened = 1;
     return SUCCESS;
 }
 
@@ -72,8 +74,6 @@ int ColorPlayer::close()
     XFFmpeg::Get()->Close();
 
     pMasterClock->close();
-
-    player->paused = 0;
 
     qDebug()<<"ColorPlayer end to close";
     return SUCCESS;
@@ -125,7 +125,10 @@ int ColorPlayer::resume()
 
 int ColorPlayer::stop()
 {
-    player->playerState = PLAYER_STATE_STOP;
+    if (player)
+    {
+        player->playerState = PLAYER_STATE_STOP;
+    }
 
     SDL2AudioDisplayThread::Get()->stop();
     VideoOutput::Get()->stop();
@@ -227,7 +230,8 @@ void ColorPlayer::deinit_context()
 
 ColorPlayer::~ColorPlayer()
 {
-    close();
+    if (bOpened)
+        close();
 
     if (!pMasterClock)
     {

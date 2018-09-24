@@ -110,7 +110,6 @@ typedef struct PlayerInfo {
     FrameQueue videoFrameQueue;
     FrameQueue audioFrameQueue;
     PlayerState playerState;
-    int paused;
 }PlayerInfo;
 
 class ColorPlayer
@@ -146,6 +145,7 @@ private:
     void deinit_context();
     PlayerInfo *player;
     MasterClock *pMasterClock;
+    int bOpened;
 };
 
 
