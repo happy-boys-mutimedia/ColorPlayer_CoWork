@@ -9,13 +9,6 @@ extern "C"{
 //local define
 #define MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
 
-//Output PCM
-#define OUTPUT_PCM 1
-
-//Use SDL
-#define USE_SDL 1
-
-#define OUT_SAMPLE_RATE 44100
 //-----------------------------------------------------------------------------
 
 
@@ -28,17 +21,9 @@ extern "C"{
 //-----------------------------------------------------------------------------
 
 //local variable
-
-//Buffer:
-//|-----------|-------------|
-//chunk-------pos---len-----|
-static  Uint8  *audio_chunk;
-static  Uint32  audio_len = 0;
-static  Uint8  *audio_pos;
-static  char *out_buffer;
-static  Uint32 out_buffer_size;
-
 QList<Frame *>audioDisp;
+QList<PCMBuffer_t *>audioPCMDisp;
+
 //-----------------------------------------------------------------------------
 
 /* The audio function callback takes the following parameters:
@@ -47,63 +32,53 @@ QList<Frame *>audioDisp;
 */
 void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
 {
-    //qDebug()<<"_SDL2_fill_audio_callback IN len "<<len<<"audio_len "<<audio_len;
-    //SDL 2.0
+    SDL2AudioDisplayThread *pADT = (SDL2AudioDisplayThread *)udata;
+    PCMBuffer_t * pPCMBuffer = NULL;
+
     SDL_memset(stream, 0, len);
-    if(audio_len == 0)		/*  Only  play  if  we  have  data  left  */
+
+    pADT->player->ADispPCMQueue.mutex.lock();
+    if (pADT->player->ADispPCMQueue.Queue->isEmpty())
     {
+        qDebug()<<"ADispPCMQueue empty";
+        pADT->player->ADispPCMQueue.mutex.unlock();
         return;
     }
-    //qDebug()<<"callback want read len "<<len;
-    len = (len > audio_len ? audio_len : len);	/*  Mix  as  much  data  as  possible  */
 
-    SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
-    audio_pos += len;
-    audio_len -= len;
-}
+    pPCMBuffer = pADT->player->ADispPCMQueue.Queue->takeFirst();
+    pADT->player->ADispPCMQueue.mutex.unlock();
 
-/* The audio function callback takes the following parameters:
- * stream: A pointer to the audio buffer to be filled
- * len: The length (in bytes) of the audio buffer
-*/
-int sdl2_init(void)
-{
-    SDL_AudioSpec wanted_spec;
-    //Init
-    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER))
+    if (pADT->bFirstFrame)
     {
-        printf( "Could not initialize SDL - %s\n", SDL_GetError());
-        return -1;
+        qDebug()<<"bFirstFrame pPCMBuffer->pts "<<pPCMBuffer->pts;
+        pADT->pMasterClock->set_clock_base(pPCMBuffer->pts);
+        pADT->bFirstFrame = 0;
+    }
+    else
+    {
+        pADT->pMasterClock->set_audio_clock(pPCMBuffer->pts);
     }
 
-    //Out Audio Param
-    //Out Buffer Size
-    out_buffer = (char *)av_malloc(MAX_AUDIO_FRAME_SIZE * 2);
-
-    //SDL_AudioSpec
-    wanted_spec.freq = XFFmpeg::Get()->sampleRate;//todo
-    wanted_spec.format = AUDIO_S16SYS;
-    wanted_spec.channels = XFFmpeg::Get()->channel;
-    wanted_spec.silence = 0;
-    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1024);
-    wanted_spec.callback = _SDL2_fill_audio_callback;
-    wanted_spec.userdata = NULL;//pCodecCtx;
-    qDebug()<<"freq "<<wanted_spec.freq<<"format "<<wanted_spec.format<<"channels "<<wanted_spec.channels;
-    qDebug()<<"samples "<<wanted_spec.samples;
-    if (SDL_OpenAudio(&wanted_spec, NULL) < 0)
+    int buffer_size_read = 0;
+    int buffer_size_index = 0;
+    while (len > 0)
     {
-        printf("can't open audio.\n");
-        return -1;
+        buffer_size_read = pPCMBuffer->bufferSize - buffer_size_index;
+        if (buffer_size_read > len)
+        {
+            buffer_size_read = len;
+        }
+        if (buffer_size_read <= 0)
+        {
+            break;
+        }
+
+        SDL_MixAudio(stream, (const Uint8*)pPCMBuffer->bufferAddr + buffer_size_index, buffer_size_read, SDL_MIX_MAXVOLUME);
+        len -= buffer_size_read;
+        buffer_size_index += buffer_size_read;
     }
-    qDebug()<<"sdl2_init init done !!!!!!!!";
 
-    return 0;
-}
-
-int sdl2_display(void)
-{
-    SDL2AudioDisplayThread::Get()->run();
-    return 0;
+    pPCMBuffer->state = DISP_DONE;
 }
 
 void SDL2AudioDisplayThread::initPlayerInfo(PlayerInfo *pPI)
@@ -119,13 +94,37 @@ void SDL2AudioDisplayThread::initDisplayQueue(PlayerInfo *pPI)
 {
     qDebug()<<"SDL2AudioDisplayThread::initDisplayQueue";
     pPI->ADispQueue.Queue = &audioDisp;
-    pPI->ADispQueue.size = FRAME_QUEUE_SIZE +1;
+    pPI->ADispQueue.size = FRAME_QUEUE_SIZE + 1;
+    pPI->ADispPCMQueue.Queue = &audioPCMDisp;
+    pPI->ADispPCMQueue.size = FRAME_QUEUE_SIZE + 1;
+
+    for (int i = 0; i < FRAME_QUEUE_SIZE; i++)
+    {
+        PCMBuffers[i].bufferAddr = (char *)av_malloc(MAX_AUDIO_FRAME_SIZE * 2);
+        PCMBuffers[i].state = DISP_NONE;
+        PCMBuffers[i].bufferSize = 0;
+        PCMBuffers[i].pts = -1;
+    }
 }
 
 void SDL2AudioDisplayThread::deinitDisplayQueue(PlayerInfo *pPI)
 {
     if (pPI)
+    {
         pPI->ADispQueue.Queue->clear();
+        pPI->ADispPCMQueue.Queue->clear();
+        for (int i = 0; i < FRAME_QUEUE_SIZE; i++)
+        {
+            if (!PCMBuffers[i].bufferAddr)
+            {
+                av_free((void *)PCMBuffers[i].bufferAddr);
+                PCMBuffers[i].bufferAddr = NULL;
+            }
+            PCMBuffers[i].state = DISP_NONE;
+            PCMBuffers[i].bufferSize = 0;
+            PCMBuffers[i].pts = -1;
+        }
+    }
 }
 
 void SDL2AudioDisplayThread::initMasterClock(MasterClock * pMC)
@@ -134,6 +133,29 @@ void SDL2AudioDisplayThread::initMasterClock(MasterClock * pMC)
     {
         pMasterClock = pMC;
     }
+}
+
+PCMBuffer_t *SDL2AudioDisplayThread::GetOneValidPCMBuffer()
+{
+    PCMBuffer_t *pPCMBuffer = NULL;
+    int i;
+
+    for (i = 0; i < FRAME_QUEUE_SIZE; i++)
+    {
+        if (PCMBuffers[i].state != DISP_WAIT && PCMBuffers[i].bufferAddr != NULL)
+        {
+            pPCMBuffer = &PCMBuffers[i];
+            break;
+        }
+    }
+
+    if (i == FRAME_QUEUE_SIZE)
+    {
+        //qDebug()<<" can't find valid PCMBuffers for SDL2";
+        return NULL;
+    }
+
+    return pPCMBuffer;
 }
 
 void SDL2AudioDisplayThread::queueMessage(MessageCmd_t MsgCmd)
@@ -151,13 +173,21 @@ void SDL2AudioDisplayThread::stop()
 void SDL2AudioDisplayThread::flush()
 {
     bFirstFrame = 1;
-    audio_len = 0;
     player->ADispQueue.Queue->clear();
+    player->ADispPCMQueue.Queue->clear();
+
+    for (int i = 0; i < FRAME_QUEUE_SIZE; i++)
+    {
+        PCMBuffers[i].state = DISP_NONE;
+        PCMBuffers[i].bufferSize = 0;
+        PCMBuffers[i].pts = -1;
+    }
 }
 
 void SDL2AudioDisplayThread::run()
 {
-    Frame *pFrame = {0};
+    Frame *pFrame = NULL;
+    PCMBuffer_t *pPCMBuffer = NULL;
     MessageCmd_t Msgcmd;
     Msgcmd.cmd = MESSAGE_CMD_NONE;
     Msgcmd.cmdType = MESSAGE_QUEUE_TYPES;
@@ -180,6 +210,7 @@ void SDL2AudioDisplayThread::run()
             {
                 qDebug()<<"SDL2AudioDisplayThread get resume cmd~";
                 currentState = THREAD_START;
+                SDL_PauseAudio(0);
             }
             msleep(10);
             continue;
@@ -189,13 +220,19 @@ void SDL2AudioDisplayThread::run()
         {
             qDebug()<<"SDL2AudioDisplayThread get pause cmd~";
             currentState = THREAD_PAUSE;
+            SDL_PauseAudio(1);
             msleep(10);
             continue;
         }
 
+        if (!(pPCMBuffer = GetOneValidPCMBuffer()))
+        {
+            //qDebug()<<"GetOneValidPCMBuffer empty";
+            continue; 
+        }
+
         if (player->ADispQueue.Queue->isEmpty())
         {
-            msleep(50);
             qDebug()<<"ADispQueue empty";
             continue;
         }
@@ -212,44 +249,28 @@ void SDL2AudioDisplayThread::run()
         }
 
         XFFmpeg::Get()->PutFrameToConvert(XFFmpeg::Get()->audioStreamidx, pFrame->frame);
-        out_buffer_size = XFFmpeg::Get()->ToPCM(out_buffer);
-        //qDebug()<<"ADispQueue get one frame!! out_buffer_size "<<out_buffer_size;
-        if (out_buffer_size == 0)
+        pPCMBuffer->bufferSize = XFFmpeg::Get()->ToPCM(pPCMBuffer->bufferAddr);
+        if (pPCMBuffer->bufferSize == 0)
         {
             qDebug()<<"ToPCM error !";
             av_frame_unref(pFrame->frame);
             pFrame->DecState = DecWait;
             pFrame->DispState = DispOver;
+            pPCMBuffer->state = DISP_DONE;
             continue;
         }
-        while((audio_len > 0) && !bStop)//Wait until finish
-            SDL_Delay(1);
 
-        //Set audio buffer (PCM data)
-        audio_chunk = (Uint8 *)out_buffer;
-        //Audio buffer length
-        audio_len = out_buffer_size;
-        audio_pos = audio_chunk;
-
-        if (bFirstFrame)
-        {
-            pMasterClock->set_clock_base(pFrame->frame->pts);
-            bFirstFrame = 0;
-        }
-        else
-        {
-            pMasterClock->set_audio_clock(pFrame->frame->pts);
-        }
-
-        //Play
-        SDL_PauseAudio(0);
-
-        //显示完成更新帧存状态，解码线程可以拿帧继续解码
+        pPCMBuffer->pts = pFrame->frame->pts;
         pFrame->DecState = DecWait;
         pFrame->DispState = DispOver;
+
+        player->ADispPCMQueue.mutex.lock();
+        pPCMBuffer->state = DISP_WAIT;
+        //qDebug()<<"ADispPCMQueue ==> append";
+        player->ADispPCMQueue.Queue->append(pPCMBuffer);
+        player->ADispPCMQueue.mutex.unlock();
     }
 
-    audio_len = 0;
     qDebug()<<"SDL2AudioDisplayThread::run() stop!";
 }
 
@@ -266,10 +287,42 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
     }
 }
 
+/* The audio function callback takes the following parameters:
+ * stream: A pointer to the audio buffer to be filled
+ * len: The length (in bytes) of the audio buffer
+*/
 void SDL2AudioDisplayThread::init()
 {
-    sdl2_init();
-    qDebug()<<"SDL2AudioDisplayThread::init()";
+    SDL_AudioSpec wanted_spec;
+    //Init
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER))
+    {
+        printf( "Could not initialize SDL - %s\n", SDL_GetError());
+        return;
+    }
+
+    //SDL_AudioSpec
+    wanted_spec.freq = XFFmpeg::Get()->sampleRate;//todo
+    wanted_spec.format = AUDIO_S16SYS;
+    wanted_spec.channels = XFFmpeg::Get()->channel;
+    wanted_spec.silence = 0;
+    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1024);
+    wanted_spec.callback = _SDL2_fill_audio_callback;
+    wanted_spec.userdata = (void *)this;
+    qDebug()<<"freq "<<wanted_spec.freq<<"format "<<wanted_spec.format<<"channels "<<wanted_spec.channels;
+    qDebug()<<"samples "<<wanted_spec.samples;
+    if (SDL_OpenAudio(&wanted_spec, NULL) < 0)
+    {
+        printf("can't open audio.\n");
+        return;
+    }
+
+    //Play
+    SDL_PauseAudio(0);
+
+    qDebug()<<"sdl2_init init done !!!!!!!!";
+
+    return;
 }
 
 void SDL2AudioDisplayThread::deinit()
@@ -289,6 +342,19 @@ SDL2AudioDisplayThread::~SDL2AudioDisplayThread()
     {
         delete pMessage;
     }
+
+    for (int i = 0; i < FRAME_QUEUE_SIZE; i++)
+    {
+        if (!PCMBuffers[i].bufferAddr)
+        {
+            av_free((void *)PCMBuffers[i].bufferAddr);
+            PCMBuffers[i].bufferAddr = NULL;
+        }
+        PCMBuffers[i].state = DISP_NONE;
+        PCMBuffers[i].bufferSize = 0;
+        PCMBuffers[i].pts = -1;
+    }
+
     qDebug()<<"~SDL2AudioDisplayThread()";
 }
 

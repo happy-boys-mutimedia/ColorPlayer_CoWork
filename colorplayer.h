@@ -78,6 +78,31 @@ typedef struct DispFrameQueue
     QMutex mutex;
 }DispFrameQueue;
 
+typedef enum
+{
+    DISP_NONE,
+    DISP_WAIT,
+    DISP_DONE
+} PCMBufferState_e;
+
+typedef struct stPCMBuffer
+{
+    char *bufferAddr;
+    uint bufferSize;
+    int64_t pts;
+    PCMBufferState_e state;
+} PCMBuffer_t;
+
+typedef struct DispPCMQueue
+{
+    QList<PCMBuffer_t *> *Queue;
+    int rindex;
+    int windex;
+    int notUseNum;
+    int size;
+    QMutex mutex;
+} DispPCMQueue;
+
 typedef struct Clock {
     int64_t pts;           /* clock base */
     int64_t pts_drift;     /* clock base minus time at which we updated the clock */
@@ -105,8 +130,9 @@ typedef struct PlayerInfo {
     PacketQueue videoPacketQueue;
     PacketQueue audioPacketQueue;
     DispFrameQueue VDispQueue;
-    DispFrameQueue ADispQueue;
     DispFrameQueue Video2WidgetQueue;
+    DispFrameQueue ADispQueue;
+    DispPCMQueue ADispPCMQueue;
     FrameQueue videoFrameQueue;
     FrameQueue audioFrameQueue;
     PlayerState playerState;

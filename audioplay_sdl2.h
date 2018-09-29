@@ -4,7 +4,7 @@
 #include "colorplayer.h"
 #include "messagequeue.h"
 #include "masterclock.h"
-
+#include "stdint.h"
 
 class SDL2AudioDisplayThread:public QThread
 {
@@ -26,12 +26,15 @@ public:
     void initMasterClock(MasterClock * pMC);
     void queueMessage(MessageCmd_t MsgCmd);
     virtual ~SDL2AudioDisplayThread();
-private:
     PlayerInfo *player;
-    message *pMessage;
     MasterClock * pMasterClock;
     int bFirstFrame;
+private:
+    PCMBuffer_t PCMBuffers[FRAME_QUEUE_SIZE];
+    message *pMessage;
+
     int bStop;
+    PCMBuffer_t *GetOneValidPCMBuffer();
 };
 
 #endif // AUDIOPLAY_SDL2_H
