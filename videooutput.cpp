@@ -71,7 +71,7 @@ int VideoOutput::DecideKeepFrame(int need_av_sync, int64_t pts)
 int VideoOutput::CheckOutWaitOrDisplay(int64_t pts)
 {
     int64_t late = 0;
-    int beyond_tolerance_threshold = 60;//just test
+    int beyond_tolerance_threshold = 0;
 
     late = CalcSyncLate(pts);
     if (late >= 0)
