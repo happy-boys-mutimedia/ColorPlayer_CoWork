@@ -66,6 +66,8 @@ Widget::~Widget()
     delete menuBar;
     delete ui;
 
+    //restore window sleep
+    SetThreadExecutionState(ES_CONTINUOUS);
 }
 
 void Widget::on_OpenButton_clicked()
@@ -181,6 +183,9 @@ void Widget::openFile(QString name)
             QMessageBox::information(this, "err", "file open error");
         }
     }
+
+    //stop windows sleep
+    SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
 
     int totalMs = ColorPlayer::Get()->get_play_time_ms();
     char buf[1024] = { 0 };
