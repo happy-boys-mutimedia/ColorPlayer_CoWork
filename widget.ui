@@ -22,6 +22,12 @@
      <height>271</height>
     </rect>
    </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <property name="maximumSize">
     <size>
      <width>1920</width>
@@ -29,45 +35,13 @@
     </size>
    </property>
   </widget>
-  <widget class="QPushButton" name="OpenButton">
-   <property name="geometry">
-    <rect>
-     <x>4</x>
-     <y>326</y>
-     <width>47</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
-   <property name="text">
-    <string>File</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="PlayButton">
-   <property name="geometry">
-    <rect>
-     <x>57</x>
-     <y>326</y>
-     <width>46</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true"/>
-   </property>
-   <property name="text">
-    <string>Play</string>
-   </property>
-  </widget>
   <widget class="XSlider" name="PlaySlider">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>280</y>
-     <width>461</width>
-     <height>19</height>
+     <x>46</x>
+     <y>320</y>
+     <width>361</width>
+     <height>22</height>
     </rect>
    </property>
    <property name="maximum">
@@ -83,11 +57,17 @@
   <widget class="QLabel" name="PlayTime">
    <property name="geometry">
     <rect>
-     <x>66</x>
-     <y>300</y>
+     <x>410</x>
+     <y>320</y>
      <width>48</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
    </property>
    <property name="styleSheet">
     <string notr="true">background-color: rgb(255, 255, 255);</string>
@@ -96,30 +76,20 @@
     <string>00:00:00</string>
    </property>
   </widget>
-  <widget class="QLabel" name="SP">
-   <property name="geometry">
-    <rect>
-     <x>54</x>
-     <y>300</y>
-     <width>16</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">border-color: rgb(85, 255, 127);</string>
-   </property>
-   <property name="text">
-    <string>/</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="TotalTime">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>300</y>
+     <x>1</x>
+     <y>320</y>
      <width>48</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
    </property>
    <property name="styleSheet">
     <string notr="true">background-color: rgb(255, 255, 255);</string>

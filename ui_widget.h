@@ -15,7 +15,6 @@
 #include <QtWidgets/QButtonGroup>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
-#include <QtWidgets/QPushButton>
 #include <QtWidgets/QWidget>
 #include "videowidget.h"
 #include "xslider.h"
@@ -26,11 +25,8 @@ class Ui_Widget
 {
 public:
     VideoWidget *openGLWidget;
-    QPushButton *OpenButton;
-    QPushButton *PlayButton;
     XSlider *PlaySlider;
     QLabel *PlayTime;
-    QLabel *SP;
     QLabel *TotalTime;
 
     void setupUi(QWidget *Widget)
@@ -41,32 +37,32 @@ public:
         openGLWidget = new VideoWidget(Widget);
         openGLWidget->setObjectName(QStringLiteral("openGLWidget"));
         openGLWidget->setGeometry(QRect(0, 0, 461, 271));
+        QSizePolicy sizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        sizePolicy.setHorizontalStretch(0);
+        sizePolicy.setVerticalStretch(0);
+        sizePolicy.setHeightForWidth(openGLWidget->sizePolicy().hasHeightForWidth());
+        openGLWidget->setSizePolicy(sizePolicy);
         openGLWidget->setMaximumSize(QSize(1920, 1080));
-        OpenButton = new QPushButton(Widget);
-        OpenButton->setObjectName(QStringLiteral("OpenButton"));
-        OpenButton->setGeometry(QRect(4, 326, 47, 23));
-        OpenButton->setStyleSheet(QStringLiteral(""));
-        PlayButton = new QPushButton(Widget);
-        PlayButton->setObjectName(QStringLiteral("PlayButton"));
-        PlayButton->setGeometry(QRect(57, 326, 46, 23));
-        PlayButton->setStyleSheet(QStringLiteral(""));
         PlaySlider = new XSlider(Widget);
         PlaySlider->setObjectName(QStringLiteral("PlaySlider"));
-        PlaySlider->setGeometry(QRect(0, 280, 461, 19));
+        PlaySlider->setGeometry(QRect(46, 320, 361, 22));
         PlaySlider->setMaximum(999);
         PlaySlider->setPageStep(100);
         PlaySlider->setOrientation(Qt::Horizontal);
         PlayTime = new QLabel(Widget);
         PlayTime->setObjectName(QStringLiteral("PlayTime"));
-        PlayTime->setGeometry(QRect(66, 300, 48, 16));
+        PlayTime->setGeometry(QRect(410, 320, 48, 16));
+        QSizePolicy sizePolicy1(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        sizePolicy1.setHorizontalStretch(0);
+        sizePolicy1.setVerticalStretch(0);
+        sizePolicy1.setHeightForWidth(PlayTime->sizePolicy().hasHeightForWidth());
+        PlayTime->setSizePolicy(sizePolicy1);
         PlayTime->setStyleSheet(QStringLiteral("background-color: rgb(255, 255, 255);"));
-        SP = new QLabel(Widget);
-        SP->setObjectName(QStringLiteral("SP"));
-        SP->setGeometry(QRect(54, 300, 16, 16));
-        SP->setStyleSheet(QStringLiteral("border-color: rgb(85, 255, 127);"));
         TotalTime = new QLabel(Widget);
         TotalTime->setObjectName(QStringLiteral("TotalTime"));
-        TotalTime->setGeometry(QRect(0, 300, 48, 16));
+        TotalTime->setGeometry(QRect(1, 320, 48, 16));
+        sizePolicy1.setHeightForWidth(TotalTime->sizePolicy().hasHeightForWidth());
+        TotalTime->setSizePolicy(sizePolicy1);
         TotalTime->setStyleSheet(QStringLiteral("background-color: rgb(255, 255, 255);"));
 
         retranslateUi(Widget);
@@ -77,10 +73,7 @@ public:
     void retranslateUi(QWidget *Widget)
     {
         Widget->setWindowTitle(QApplication::translate("Widget", "ColorPlayer", 0));
-        OpenButton->setText(QApplication::translate("Widget", "File", 0));
-        PlayButton->setText(QApplication::translate("Widget", "Play", 0));
         PlayTime->setText(QApplication::translate("Widget", "00:00:00", 0));
-        SP->setText(QApplication::translate("Widget", "/", 0));
         TotalTime->setText(QApplication::translate("Widget", "00:00:00", 0));
     } // retranslateUi
 

@@ -27,28 +27,22 @@ Widget::Widget(QWidget *parent) :
     status = new QStatusBar(this);
 
     menu[0] = new QMenu("文件");
-    menu[0]->addAction("编辑");
-    menu[0]->addAction("查看");
-    menu[0]->addAction("工具");
 
-    act[0] = new QAction("新建",this);
-    act[0]->setShortcut(Qt::CTRL | Qt::Key_A );
-    act[0]->setStatusTip("new menu");
+    act[0] = new QAction("打开",this);
+    act[0]->setShortcut(QKeySequence::Open);
+    act[0]->setStatusTip(tr("open media file"));
+    act[1] = new QAction("关闭",this);
+    act[1]->setShortcut(QKeySequence::Quit);
+    act[1]->setStatusTip(tr("exit"));
+    menu[0]->addAction(act[0]);
+    menu[0]->addAction(act[1]);
 
-    act[1] = new QAction("打开",this);
-    act[1]->setCheckable(true);
-
-    menu[1] = new QMenu("保存");
-    menu[1]->addAction(act[0]);
-    menu[1]->addAction(act[1]);
-
-    menu[2] = new QMenu("打印");
-    menu[2]->addAction("打印设置");
-    menu[2]->addMenu(menu[1]);
+    menu[1] = new QMenu("操作");
+    menu[1]->addAction("暂停");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
-    menuBar->addMenu(menu[2]);
+    menuBar->addMenu(menu[1]);
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
@@ -60,7 +54,6 @@ Widget::~Widget()
 {
     delete menu[0];
     delete menu[1];
-    delete menu[2];
     delete act[0];
     delete act[1];
     delete menuBar;
@@ -87,19 +80,6 @@ void Widget::on_PlayButton_clicked()
     {
         ColorPlayer::Get()->resume();
     }
-
-    if (isPlay)
-    {
-        //pause
-        ui->PlayButton->setStyleSheet("QPushButton{color:blue}");
-        //ui->PlayButton->setStyleSheet(PAUSE);
-    }
-    else
-    {
-        //play
-        ui->PlayButton->setStyleSheet("QPushButton{color:red}");
-        //ui->PlayButton->setStyleSheet(PLAY);
-    }
 }
 
 void Widget::on_PlaySlider_sliderPressed()
@@ -119,15 +99,11 @@ void Widget::on_PlaySlider_sliderReleased()
 void Widget::resizeEvent(QResizeEvent *e)
 {
     this->menuBar->resize(this->width(),25);
-    ui->openGLWidget->resize(size());
-    ui->OpenButton->move(5, this->height()-40);
-    //ui->OpenButton->resize(this->width()/10, this->height()/10);
-    ui->PlayButton->move(70, this->height()-40);
-    ui->PlaySlider->move(5,this->height() - 15);
-    ui->PlaySlider->resize(this->width(), ui->PlaySlider->height());
-    ui->PlayTime->move(5, this->height() - 60);
-    ui->TotalTime->move(70, this->height() - 60);
-    ui->SP->move(70, this->height() - 60);
+    ui->openGLWidget->resize(this->width(), this->height() - 20);
+    ui->PlaySlider->move(48,this->height() - 19);
+    ui->PlaySlider->resize(this->width() - 96, ui->PlaySlider->height());
+    ui->PlayTime->move(0, this->height() - 16);
+    ui->TotalTime->move(this->width() - 48, this->height() - 16);
 }
 
 void Widget::timerEvent(QTimerEvent *e)
@@ -221,9 +197,20 @@ void Widget::openFile(QString name)
 
 void Widget::trigerMenu(QAction* act)
 {
-    if(act->text() == "新建")
+    if(act->text() == "打开")
     {
         qDebug()<<"press down";
+        on_OpenButton_clicked();
+    }
+
+    if(act->text() == "暂停")
+    {
+        on_PlayButton_clicked();
+    }
+
+    if(act->text() == "关闭")
+    {
+        ColorPlayer::Get()->close();
     }
 }
 
