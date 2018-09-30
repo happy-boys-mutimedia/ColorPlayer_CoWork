@@ -38,7 +38,7 @@ Widget::Widget(QWidget *parent) :
     menu[0]->addAction(act[1]);
 
     menu[1] = new QMenu("操作");
-    menu[1]->addAction("暂停");
+    menu[1]->addAction("暂停/播放");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
@@ -46,6 +46,9 @@ Widget::Widget(QWidget *parent) :
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
+
+    //无边框
+    //setWindowFlags(Qt::FramelessWindowHint);
 
     bOpened = 0;
 }
@@ -203,7 +206,7 @@ void Widget::trigerMenu(QAction* act)
         on_OpenButton_clicked();
     }
 
-    if(act->text() == "暂停")
+    if(act->text() == "暂停/播放")
     {
         on_PlayButton_clicked();
     }
