@@ -12,5 +12,6 @@ features supported
 7.UI can show play time;  
 more features to be done!welcome to development the player,thx!  
 
-Now she is look like this  
+Now she looks like this  
 
+![colorPlayer](img/colorPlayer.PNG)  
