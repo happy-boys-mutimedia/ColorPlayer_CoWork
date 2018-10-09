@@ -233,7 +233,7 @@ void SDL2AudioDisplayThread::run()
 
         if (player->ADispQueue.Queue->isEmpty())
         {
-            qDebug()<<"ADispQueue empty";
+            //qDebug()<<"ADispQueue empty";
             continue;
         }
 
@@ -306,7 +306,7 @@ void SDL2AudioDisplayThread::init()
     wanted_spec.format = AUDIO_S16SYS;
     wanted_spec.channels = XFFmpeg::Get()->channel;
     wanted_spec.silence = 0;
-    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1024);
+    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1536);//ac-3 Dolby digital:1536
     wanted_spec.callback = _SDL2_fill_audio_callback;
     wanted_spec.userdata = (void *)this;
     qDebug()<<"freq "<<wanted_spec.freq<<"format "<<wanted_spec.format<<"channels "<<wanted_spec.channels;
