@@ -40,8 +40,8 @@ public:
     int totalMs = 0;
     int fps = 0;
     int pts = 0;//
-    int videostreamidx;
-    int audioStreamidx;
+    int videostreamidx = -1;
+    int audioStreamidx = -1;
     int width;
     int height;
     int sampleRate = 0;

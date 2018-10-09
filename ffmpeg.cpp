@@ -74,7 +74,7 @@ bool XFFmpeg::Open(const char *path)
     for (unsigned int i = 0; i < ic->nb_streams; i++)
     {
         AVCodecContext *codecCTX_tmp = ic->streams[i]->codec;
-        if (codecCTX_tmp->codec_type == AVMEDIA_TYPE_VIDEO)//视频流
+        if ((codecCTX_tmp->codec_type == AVMEDIA_TYPE_VIDEO) && (videostreamidx == -1))//视频流
         {
             videostreamidx = i;
             video_avctx = ic->streams[i]->codec;
@@ -104,7 +104,7 @@ bool XFFmpeg::Open(const char *path)
                 qDebug()<<"find vdieo dec "<<i<<"width ="<<width<<"height"<<height;
             }
         }
-        else if (codecCTX_tmp->codec_type == AVMEDIA_TYPE_AUDIO)//音频流
+        else if ((codecCTX_tmp->codec_type == AVMEDIA_TYPE_AUDIO) && (audioStreamidx == -1))//音频流
         {
             audioStreamidx = i;
             qDebug()<<"audio duration==>"<<ic->streams[i]->duration<<"frames "<<ic->streams[i]->codec->frame_number;
@@ -170,6 +170,9 @@ void XFFmpeg::Close()
         avformat_close_input(&ic);
         ic = NULL;
     }
+
+    videostreamidx = -1;
+    audioStreamidx = -1;
 
     mutex.unlock();
 }
@@ -406,6 +409,8 @@ XFFmpeg::XFFmpeg()
 {
     errorbuf[0] = '\0';
     av_register_all();
+    videostreamidx = -1;
+    audioStreamidx = -1;
 }
 
 
