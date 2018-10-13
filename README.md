@@ -10,6 +10,7 @@ features supported
 5.reopen other files when playing;  
 6.pause function;  
 7.UI can show play time;  
+8.support play live stream;  
 more features to be done!welcome to development the player,thx!  
 
 Now she looks like this  
