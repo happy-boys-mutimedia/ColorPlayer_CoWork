@@ -14,5 +14,9 @@ features supported
 more features to be done!welcome to development the player,thx!  
 
 Now she looks like this  
+playback local file  
 
 ![colorPlayer](img/colorPlayer.PNG)  
+
+playback live stream  
+![colorPlayer](img/play_live_stream.PNG)  
