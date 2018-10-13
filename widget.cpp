@@ -8,6 +8,7 @@
 #include "audioplay_sdl2.h"
 #include "colorplayer.h"
 #include <QDebug>
+#include <QInputDialog>
 
 static bool isPressedSlider = false;
 static bool isPlay = true;
@@ -39,6 +40,7 @@ Widget::Widget(QWidget *parent) :
 
     menu[1] = new QMenu("操作");
     menu[1]->addAction("暂停/播放");
+    menu[1]->addAction("打开网络串流");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
@@ -214,6 +216,12 @@ void Widget::trigerMenu(QAction* act)
     if(act->text() == "关闭")
     {
         ColorPlayer::Get()->close();
+    }
+
+    if(act->text() == "打开网络串流")
+    {
+        QString text = QInputDialog::getText(this, "网络串流URL", "输入URL");
+        openFile(text);
     }
 }
 
