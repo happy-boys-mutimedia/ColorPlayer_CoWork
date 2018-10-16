@@ -131,6 +131,14 @@ void Widget::timerEvent(QTimerEvent *e)
     }
 }
 
+void Widget::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_Space)
+    {
+        on_PlayButton_clicked();
+    }
+}
+
 void Widget::openFile(QString name)
 {
     if (name.isEmpty())

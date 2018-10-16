@@ -9,6 +9,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QStatusBar>
+#include <QKeyEvent>
 
 namespace Ui {
 class Widget;
@@ -24,6 +25,7 @@ public:
     void openFile(QString name);
     void resizeEvent(QResizeEvent *e);
     void timerEvent(QTimerEvent *e);
+    void keyPressEvent(QKeyEvent *event);
 
     //增加界面菜单栏
     QMenu* menu[10];
