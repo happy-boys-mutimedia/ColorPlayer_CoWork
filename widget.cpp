@@ -116,26 +116,53 @@ void Widget::timerEvent(QTimerEvent *e)
     char buf[1024] = {0};
 
     int playTime = ColorPlayer::Get()->get_pos();
-
-    int hour = (playTime / 1000) / (60 * 60);
-    int min = ((playTime / 1000) % (60 * 60)) / 60;
-    int sec = (playTime / 1000) % 60;
-    sprintf(buf, "%02d:%02d:%02d", hour, min, sec);
-    ui->PlayTime->setText(buf);
-
-    if (ColorPlayer::Get()->get_play_time_ms() > 0)
+    if (playTime != -1)
     {
-        float rate = (float)playTime / (float)ColorPlayer::Get()->get_play_time_ms();
-        if (!isPressedSlider)/*如果没有按下进度条才显示*/
-        ui->PlaySlider->setValue(rate * 1000);
+        int hour = (playTime / 1000) / (60 * 60);
+        int min = ((playTime / 1000) % (60 * 60)) / 60;
+        int sec = (playTime / 1000) % 60;
+        sprintf(buf, "%02d:%02d:%02d", hour, min, sec);
+        ui->PlayTime->setText(buf);
+
+        if (ColorPlayer::Get()->get_play_time_ms() > 0)
+        {
+            float rate = (float)playTime / (float)ColorPlayer::Get()->get_play_time_ms();
+            if (!isPressedSlider)/*如果没有按下进度条才显示*/
+            ui->PlaySlider->setValue(rate * 1000);
+        }
     }
 }
 
 void Widget::keyPressEvent(QKeyEvent *event)
 {
+    qDebug()<<"Qt::Key_xxx:"<<event->key();
     if(event->key() == Qt::Key_Space)
     {
         on_PlayButton_clicked();
+    }
+    else if(event->key() == Qt::Key_Q)
+    {
+        qDebug()<<"Qt::Key_Q";
+        float CurPos = 0;
+        CurPos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
+        CurPos = CurPos + 0.005;
+        if (CurPos > 1.0)
+        {
+            CurPos = 1.0;
+        }
+        ColorPlayer::Get()->seek(CurPos);
+    }
+    else if(event->key() == Qt::Key_H)
+    {
+        qDebug()<<"Qt::Key_H";
+        float CurPos = 0;
+        CurPos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
+        CurPos = CurPos - 0.005;
+        if (CurPos < 0)
+        {
+            CurPos = 0;
+        }
+        ColorPlayer::Get()->seek(CurPos);
     }
 }
 

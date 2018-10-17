@@ -61,7 +61,7 @@ int VideoOutput::DecideKeepFrame(int need_av_sync, int64_t pts)
     late = CalcSyncLate(pts);
     if (late < 0)
     {
-        qDebug()<<"video pts is late need drop this frame.";
+        qDebug()<<"video pts is late need drop this frame late: "<<late;
         return 0;
     }
 
@@ -178,7 +178,7 @@ void VideoOutput::run()
             pPlayerInfo->VDispQueue.mutex.lock();
             if (pPlayerInfo->VDispQueue.Queue->isEmpty())
             {
-                qDebug()<<"VDispQueue empty";
+                //qDebug()<<"VDispQueue empty";
                 pPlayerInfo->VDispQueue.mutex.unlock();
                 msleep(10);
                 continue;
@@ -292,12 +292,12 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
     Frame *pFrame = NULL;
 
     //for pause state to rescale window,give pause frame to display
-    if ((pPlayerInfo->playerState == PLAYER_STATE_PAUSE) && (pPauseFrame != NULL))
+    if ((pPI->playerState == PLAYER_STATE_PAUSE) && (pPauseFrame != NULL))
     {
         return pPauseFrame;
     }
 
-    if (pPI->Video2WidgetQueue.Queue->isEmpty())
+    if (pPI->Video2WidgetQueue.Queue == NULL || pPI->Video2WidgetQueue.Queue->isEmpty())
     {
         return NULL;
     }
@@ -310,7 +310,7 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
     pPI->Video2WidgetQueue.mutex.unlock();
 
     //for pause state to rescale window,give pause frame to display
-    if (pPlayerInfo->playerState == PLAYER_STATE_PAUSE)
+    if (pPI->playerState == PLAYER_STATE_PAUSE)
     {
         pPauseFrame = pFrame;
     }

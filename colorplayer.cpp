@@ -89,8 +89,8 @@ int ColorPlayer::play()
     VideoDecodeThread::Get()->start();
 
     VideoOutput::Get()->start();
-
-    player->playerState = PLAYER_STATE_START;
+    if (player)
+        player->playerState = PLAYER_STATE_START;
 
     return SUCCESS;
 }
@@ -104,8 +104,8 @@ int ColorPlayer::pause()
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
     VideoOutput::Get()->queueMessage(MsgCmd);
-
-    player->playerState = PLAYER_STATE_PAUSE;
+    if (player)
+        player->playerState = PLAYER_STATE_PAUSE;
     return SUCCESS;
 }
 
@@ -118,8 +118,8 @@ int ColorPlayer::resume()
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
     VideoOutput::Get()->queueMessage(MsgCmd);
-
-    player->playerState = PLAYER_STATE_RESUME;
+    if (player)
+        player->playerState = PLAYER_STATE_RESUME;
     return SUCCESS;
 }
 
