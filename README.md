@@ -11,6 +11,7 @@ features supported
 7.UI can show play time;  
 8.support play live stream;  
 9.support keyboard key space to pause player;  
+10.support keyboard key 'Q' to forward video 0.5%,key 'H' to backward video 0.5%;  
 more features to be done!welcome to development the player,thx!  
 
 Now she looks like this  
