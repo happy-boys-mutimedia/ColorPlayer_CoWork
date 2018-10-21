@@ -189,10 +189,9 @@ AVPacket XFFmpeg::Read()
 {
     AVPacket pkt;
     memset(&pkt, 0, sizeof(AVPacket));
-    mutex.lock();
+
     if (!ic)
     {
-        mutex.unlock();
         return pkt;
     }
     int err = av_read_frame(ic, &pkt);
@@ -200,20 +199,20 @@ AVPacket XFFmpeg::Read()
     {
         av_strerror(err, errorbuf, sizeof(errorbuf));
     }
-    mutex.unlock();
+
     return pkt;
 }
 
 int XFFmpeg::GetPts(const AVPacket *pkt)
 {
-    mutex.lock();
+
     if (!ic)
     {
-        mutex.unlock();
+
         return -1;
     }
     int pts = pkt->pts * r2d(ic->streams[pkt->stream_index]->time_base) * 1000;
-    mutex.unlock();
+
 
     return pts;
 }
@@ -309,10 +308,10 @@ int XFFmpeg::PutFrameToConvert(int StreamID, AVFrame *pFrame)
 
 bool XFFmpeg::ToRGB(char *out, int outwidth, int outheight)
 {
-    mutex.lock();
+
     if (!ic || yuv == NULL)
     {
-        mutex.unlock();
+
         return false;
     }
 
@@ -326,7 +325,7 @@ bool XFFmpeg::ToRGB(char *out, int outwidth, int outheight)
         outwidth, outheight, AV_PIX_FMT_BGRA, SWS_BICUBIC, NULL, NULL, NULL);
     if (!SwsCtx)
     {
-        mutex.unlock();
+
         yuv = NULL;
         printf("sws_getCachedContext error\n");
         return false;
@@ -340,22 +339,21 @@ bool XFFmpeg::ToRGB(char *out, int outwidth, int outheight)
     if (height < 0)
     {
         yuv = NULL;
-        mutex.unlock();
+
         return true;
         printf("sws_scale error\n" );
     }
 
     yuv = NULL;
-    mutex.unlock();
+
     return true;
 }
 
 int XFFmpeg::ToPCM(char *out)
 {
-    mutex.lock();
     if (!ic || !pcm || !out)
     {
-        mutex.unlock();
+        qDebug()<<"ToPCM input null error";
         return 0;
     }
     AVCodecContext *ctx = ic->streams[audioStreamidx]->codec;
@@ -372,14 +370,13 @@ int XFFmpeg::ToPCM(char *out)
     uint8_t *data[1];
     data[0] = (uint8_t *)out;
     int len = swr_convert(SwrCtx, data, 10000, (const uint8_t **)pcm->data, pcm->nb_samples);
-    if (len <= 0)
+    if (len < 0)
     {
-        mutex.unlock();
+        qDebug()<<"ToPCM swr_convert error";
         return 0;
     }
     int outsize = av_samples_get_buffer_size(NULL, ctx->channels,
         pcm->nb_samples, AV_SAMPLE_FMT_S16, 0);
-    mutex.unlock();
     return outsize;
 }
 

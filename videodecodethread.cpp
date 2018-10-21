@@ -142,7 +142,6 @@ void VideoDecodeThread::run()
         if (pPlayerInfo->videoPacketQueue.Queue->isEmpty())
         {
             //qDebug()<<" Video Raw Queue empty !! :";
-            msleep(10);
             continue;
         }
 
@@ -156,7 +155,6 @@ void VideoDecodeThread::run()
         if ((pMyPkt = GetOnePacket(&(pPlayerInfo->videoPacketQueue))) == NULL)
         {
             //qDebug()<<" video GetOnePacket fail";
-            msleep(10);
             continue;
         }
 

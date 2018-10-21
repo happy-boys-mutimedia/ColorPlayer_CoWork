@@ -41,7 +41,7 @@ VideoOutput::~VideoOutput()
 
 int VideoOutput::NeedAVSync(MessageCmd_t MsgCmd, int bPaused)
 {
-    if ((MsgCmd.cmd == MESSAGE_CMD_PAUSE) || bPaused || bVideoFreeRun)
+    if ((MsgCmd.cmd == MESSAGE_CMD_CANCEL_AVSYNC) || bPaused || bVideoFreeRun)
     {
         return 0;
     }
@@ -168,7 +168,6 @@ void VideoOutput::run()
             qDebug()<<"VideoOutput get pause cmd~~ ";
             currentState = THREAD_PAUSE;
             bPaused = 1;
-            msleep(10);
             continue;
         }
 
@@ -180,7 +179,6 @@ void VideoOutput::run()
             {
                 //qDebug()<<"VDispQueue empty";
                 pPlayerInfo->VDispQueue.mutex.unlock();
-                msleep(10);
                 continue;
             }
 
@@ -189,7 +187,6 @@ void VideoOutput::run()
             if (pFrame == NULL || pFrame->frame == NULL)
             {
                 qDebug()<<"pFrame == NULL";
-                msleep(10);
                 continue;
             }
 

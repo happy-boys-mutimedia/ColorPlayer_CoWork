@@ -147,7 +147,6 @@ void AudioDecodeThread::run()
         if (pPlayerInfo->audioPacketQueue.Queue->isEmpty())
         {
             qDebug()<<" audio Raw Queue empty !! :";
-            msleep(10);
             continue;
         }
 
@@ -160,8 +159,7 @@ void AudioDecodeThread::run()
 
         if ((pMyPkt = GetOnePacket(&(pPlayerInfo->audioPacketQueue))) == NULL)
         {
-            qDebug()<<" Audio GetOnePacket fail";
-            msleep(10);
+            //qDebug()<<" Audio GetOnePacket fail";
             continue;
         }
 

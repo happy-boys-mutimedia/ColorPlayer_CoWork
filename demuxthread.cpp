@@ -88,7 +88,7 @@ void DemuxThread::run()
 
         if ((pPlayerInfo->videoPacketQueue.Queue->count() + pPlayerInfo->audioPacketQueue.Queue->count()) * sizeof(AVPacket) > MAX_SIZE)
         {
-            msleep(10);
+            msleep(100);
             //qDebug()<<"full ===="<<"videoPacket :"<<pPlayerInfo->videoPacketQueue.Queue->count();
             //qDebug()<<"full ===="<<"audioPacket :"<<pPlayerInfo->audioPacketQueue.Queue->count();
             continue;
@@ -143,7 +143,6 @@ void DemuxThread::run()
             tempMyPkt->serial = pPlayerInfo->videoPacketQueue.serial;
             pPlayerInfo->videoPacketQueue.Queue->append(tempMyPkt);
             //qDebug()<<"V  ==> pkt.pts =  "<<tempMyPkt->AVPkt.pts;
-            //av_free_packet(&pkt);
             pPlayerInfo->videoPacketQueue.Mutex.unlock();
         }
     }
