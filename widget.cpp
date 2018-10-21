@@ -41,6 +41,7 @@ Widget::Widget(QWidget *parent) :
     menu[1] = new QMenu("操作");
     menu[1]->addAction("暂停/播放");
     menu[1]->addAction("打开网络串流");
+    menu[1]->addAction("同步/不同步音视频");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
@@ -53,6 +54,7 @@ Widget::Widget(QWidget *parent) :
     //setWindowFlags(Qt::FramelessWindowHint);
 
     bOpened = 0;
+    bNeedAvsync = 1;
 }
 
 Widget::~Widget()
@@ -84,6 +86,19 @@ void Widget::on_PlayButton_clicked()
     else
     {
         ColorPlayer::Get()->resume();
+    }
+}
+
+void Widget::on_Avsync_clicked()
+{
+    bNeedAvsync = !bNeedAvsync;
+    if (bNeedAvsync)
+    {
+        ColorPlayer::Get()->need_avsync();
+    }
+    else
+    {
+        ColorPlayer::Get()->cancel_avsync();
     }
 }
 
@@ -257,6 +272,11 @@ void Widget::trigerMenu(QAction* act)
     {
         QString text = QInputDialog::getText(this, "网络串流URL", "输入URL");
         openFile(text);
+    }
+
+    if(act->text() == "同步/不同步音视频")
+    {
+        on_Avsync_clicked();
     }
 }
 

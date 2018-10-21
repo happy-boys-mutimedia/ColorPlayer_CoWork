@@ -42,11 +42,14 @@ public slots:
 
     void on_PlaySlider_sliderReleased();
 
+    void on_Avsync_clicked();
+
     void trigerMenu(QAction* act);
 
 private:
     Ui::Widget *ui;
     int bOpened;
+    int bNeedAvsync;
 
 };
 

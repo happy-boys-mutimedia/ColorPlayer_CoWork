@@ -171,6 +171,30 @@ int ColorPlayer::cancel_seek()
     return SUCCESS;
 }
 
+int ColorPlayer::need_avsync()
+{
+    MessageCmd_t MsgCmd;
+
+    qDebug()<< "ColorPlayer send need_avsync cmd!!";
+    MsgCmd.cmd = MESSAGE_CMD_NEED_AVSYNC;
+    MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+    if (VideoOutput::Get())
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    return SUCCESS;
+}
+
+int ColorPlayer::cancel_avsync()
+{
+    MessageCmd_t MsgCmd;
+
+    qDebug()<< "ColorPlayer send cancel_avsync cmd!!";
+    MsgCmd.cmd = MESSAGE_CMD_CANCEL_AVSYNC;
+    MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+    if (VideoOutput::Get())
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    return SUCCESS;
+}
+
 void ColorPlayer::flush()
 {
     VideoOutput::Get()->flush();

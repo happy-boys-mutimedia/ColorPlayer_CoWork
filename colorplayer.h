@@ -159,6 +159,8 @@ public:
     int get_video_width();
     int get_video_height();
     int cancel_seek();
+    int need_avsync();
+    int cancel_avsync();
     void flush();
     int seek(float position);
     int set_speed();
