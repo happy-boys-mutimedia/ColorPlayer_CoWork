@@ -43,9 +43,13 @@ Widget::Widget(QWidget *parent) :
     menu[1]->addAction("打开网络串流");
     menu[1]->addAction("同步/不同步音视频");
 
+    menu[2] = new QMenu("帮助");
+    menu[2]->addAction("关于");
+
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
     menuBar->addMenu(menu[1]);
+    menuBar->addMenu(menu[2]);
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
@@ -277,6 +281,11 @@ void Widget::trigerMenu(QAction* act)
     if(act->text() == "同步/不同步音视频")
     {
         on_Avsync_clicked();
+    }
+
+    if(act->text() == "关于")
+    {
+        QMessageBox::about(this, "about me", "Created by QiujieLu \nmail:1511248339@qq.com \ngithub:https://github.com/happy-boys-mutimedia/ColorPlayer_CoWork");
     }
 }
 
