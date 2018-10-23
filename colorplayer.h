@@ -4,6 +4,7 @@
 #include "common.h"
 #include "masterclock.h"
 #include "stdint.h"
+#include <QWaitCondition>
 
 //#define FAILED    1
 //#define SUCCESS   0

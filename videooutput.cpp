@@ -20,6 +20,9 @@ VideoOutput::VideoOutput()
     bVideoFreeRun = 0;
     pMasterClock = NULL;
     bStop = 0;
+    bStopDone = 0;
+    bFirstFrame = 1;
+    _funcCallback = NULL;
 
     pMessage = new message();
     if (!pMessage)
@@ -109,6 +112,18 @@ int64_t VideoOutput::CalcSyncLate(int64_t pts)
 void VideoOutput::stop()
 {
     bStop = 1;
+    bFirstFrame = 1;
+
+    mutex.lock();
+    while (bStopDone != 1)
+    {
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"VideoOutput::stop  wait timeout";
+            break;
+        }
+    }
+    mutex.unlock();
 }
 
 void VideoOutput::flush()
@@ -121,7 +136,8 @@ void VideoOutput::flush()
     }
 
     bVideoFreeRun = 0;
-
+    bStopDone = 0;
+    bFirstFrame = 1;
     pPlayerInfo->Video2WidgetQueue.Queue->clear();
     pPlayerInfo->VDispQueue.Queue->clear();
 }
@@ -190,6 +206,13 @@ void VideoOutput::run()
                 continue;
             }
 
+            if (bFirstFrame)
+            {
+                bFirstFrame = 0;
+                if (_funcCallback)
+                    _funcCallback(mediaItem_video);
+            }
+
             int KeepFrame = 1;
             need_av_sync = NeedAVSync(Msgcmd, bPaused);
             //need_av_sync = 0;//do not avsync
@@ -241,6 +264,11 @@ void VideoOutput::run()
             sync_status = SYNC_GO_NEXT;
         }
     }
+
+    mutex.lock();
+    bStopDone = 1;
+    WaitCondStopDone.wakeAll();
+    mutex.unlock();
     qDebug()<<"VideoOutput::run() stop!";
 }
 
@@ -336,6 +364,11 @@ void VideoOutput::receiveFrametoDisplayQueue(Frame *pFrame)
     pFrame->DispState = DispOver;
 }
 
+void VideoOutput::setCallback(pFuncCallback callback)
+{
+    if (callback)
+        _funcCallback = callback;
+}
 
 
 

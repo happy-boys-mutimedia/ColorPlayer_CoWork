@@ -3,6 +3,8 @@
 #include "colorplayer.h"
 #include "messagequeue.h"
 #include "QThread"
+#include <QMutex>
+#include <QWaitCondition>
 
 class DemuxThread:public QThread
 {
@@ -25,7 +27,10 @@ private:
     PlayerInfo *pPlayerInfo;
     message *pMessage;
     int bStop;
+    int bStopDone;
     int bFirstVideoPkt;
+    QMutex mutex;
+    QWaitCondition WaitCondStopDone;
 };
 
 #endif // DEMUXTHREAD_H

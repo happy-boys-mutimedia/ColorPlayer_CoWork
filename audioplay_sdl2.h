@@ -5,6 +5,9 @@
 #include "messagequeue.h"
 #include "masterclock.h"
 #include "stdint.h"
+#include <QMutex>
+#include <QWaitCondition>
+
 
 class SDL2AudioDisplayThread:public QThread
 {
@@ -25,16 +28,20 @@ public:
     void deinitDisplayQueue(PlayerInfo *pPI);
     void initMasterClock(MasterClock * pMC);
     void queueMessage(MessageCmd_t MsgCmd);
+    void setCallback(pFuncCallback callback);
     virtual ~SDL2AudioDisplayThread();
     PlayerInfo *player;
     MasterClock * pMasterClock;
     int bFirstFrame;
+    pFuncCallback _funcCallback;
 private:
     PCMBuffer_t PCMBuffers[FRAME_QUEUE_SIZE];
     message *pMessage;
-
     int bStop;
+    int bStopDone;
     PCMBuffer_t *GetOneValidPCMBuffer();
+    QMutex mutex;
+    QWaitCondition WaitCondStopDone;
 };
 
 #endif // AUDIOPLAY_SDL2_H

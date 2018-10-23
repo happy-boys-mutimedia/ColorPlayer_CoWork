@@ -3,6 +3,8 @@
 #include "colorplayer.h"
 #include "messagequeue.h"
 #include "QThread"
+#include <QMutex>
+#include <QWaitCondition>
 
 class VideoOutput:public QThread
 {
@@ -23,6 +25,7 @@ public:
     void queueMessage(MessageCmd_t MsgCmd);
     Frame *GetFrameFromDisplayQueue(PlayerInfo *pPI);
     void receiveFrametoDisplayQueue(Frame *pFrame);
+    void setCallback(pFuncCallback callback);
     virtual ~VideoOutput();
 private:
     VideoOutput();
@@ -36,6 +39,11 @@ private:
     MasterClock *pMasterClock;
     Frame *pPauseFrame;
     int bStop;
+    int bStopDone;
+    int bFirstFrame;
+    QMutex mutex;
+    QWaitCondition WaitCondStopDone;
+    pFuncCallback _funcCallback;
 };
 
 #endif // VIDEOOUTPUT_H

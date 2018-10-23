@@ -15,6 +15,14 @@ enum threadState
     THREAD_FLUSH
 };
 
+enum mediaItem
+{
+    mediaItem_video,
+    mediaItem_audio,
+    mediaItem_max
+};
+
+typedef void (*pFuncCallback) (mediaItem);
 int64_t getCurrentTimeInMs();
 
 #endif // COMMON_H

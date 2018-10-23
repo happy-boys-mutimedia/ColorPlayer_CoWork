@@ -6,6 +6,7 @@ VideoDecodeThread::VideoDecodeThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
+    bStopDone = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -118,6 +119,17 @@ void VideoDecodeThread::stop()
 {
     bStop = 1;
     isFirstFrame = 1;
+
+    mutex.lock();
+    while (bStopDone != 1)
+    {
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"VideoDecodeThread::stop  wait timeout";
+            break;
+        }
+    }
+    mutex.unlock();
 }
 
 void VideoDecodeThread::run()
@@ -195,6 +207,11 @@ void VideoDecodeThread::run()
             pMyPkt = NULL;
         }
     }
+
+    mutex.lock();
+    bStopDone = 1;
+    WaitCondStopDone.wakeAll();
+    mutex.unlock();
     qDebug()<<"VideoDecodeThread::run() stop!";
 }
 
@@ -246,6 +263,7 @@ void VideoDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
 
 void VideoDecodeThread::flushDecodeFrameQueue(PlayerInfo *pPI)
 {
+    bStopDone = 0;
     for (int i = 0; i < pPI->videoFrameQueue.size; i++)
     {
         if(pPI->videoFrameQueue.queue[i].frame)

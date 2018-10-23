@@ -43,6 +43,7 @@ DemuxThread::DemuxThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
+    bStopDone = 0;
     bFirstVideoPkt = 1;
 
     pMessage = new message();
@@ -68,6 +69,17 @@ DemuxThread::~DemuxThread()
 void DemuxThread::stop()
 {
     bStop = 1;
+
+    mutex.lock();
+    while (bStopDone != 1)
+    {
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"DemuxThread::stop  wait timeout";
+            break;
+        }
+    }
+    mutex.unlock();
 }
 
 void DemuxThread::run()
@@ -146,6 +158,10 @@ void DemuxThread::run()
             pPlayerInfo->videoPacketQueue.Mutex.unlock();
         }
     }
+    mutex.lock();
+    bStopDone = 1;
+    WaitCondStopDone.wakeAll();
+    mutex.unlock();
     qDebug()<<"DemuxThread::run stop!";
 }
 
@@ -165,6 +181,7 @@ int DemuxThread::initRawQueue(PlayerInfo *pPI)
 void DemuxThread::deinitRawQueue(PlayerInfo *pPI)
 {
     bFirstVideoPkt = 1;
+    bStopDone = 0;
     if (pPI)
     {
         flushPacketQueue(&pPI->audioPacketQueue);

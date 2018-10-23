@@ -4,6 +4,8 @@
 #include <QThread>
 #include "colorplayer.h"
 #include "messagequeue.h"
+#include <QMutex>
+#include <QWaitCondition>
 
 class AudioDecodeThread:public QThread
 {
@@ -31,6 +33,9 @@ private:
     PlayerInfo *pPlayerInfo;
     message *pMessage;
     int bStop;
+    int bStopDone;
+    QMutex mutex;
+    QWaitCondition WaitCondStopDone;
 };
 
 #endif // AUDIODECODETHREAD_H

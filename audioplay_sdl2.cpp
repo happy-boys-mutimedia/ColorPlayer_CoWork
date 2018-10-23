@@ -23,7 +23,6 @@ extern "C"{
 //local variable
 QList<Frame *>audioDisp;
 QList<PCMBuffer_t *>audioPCMDisp;
-
 //-----------------------------------------------------------------------------
 
 /* The audio function callback takes the following parameters:
@@ -40,7 +39,7 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
     pADT->player->ADispPCMQueue.mutex.lock();
     if (pADT->player->ADispPCMQueue.Queue->isEmpty())
     {
-        qDebug()<<"ADispPCMQueue empty";
+        //qDebug()<<"ADispPCMQueue empty";
         pADT->player->ADispPCMQueue.mutex.unlock();
         return;
     }
@@ -53,6 +52,8 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
         qDebug()<<"bFirstFrame pPCMBuffer->pts "<<pPCMBuffer->pts;
         pADT->pMasterClock->set_clock_base(pPCMBuffer->pts);
         pADT->bFirstFrame = 0;
+        if (pADT->_funcCallback)
+            pADT->_funcCallback(mediaItem_audio);
     }
     else
     {
@@ -163,16 +164,34 @@ void SDL2AudioDisplayThread::queueMessage(MessageCmd_t MsgCmd)
     pMessage->message_queue(MsgCmd);
 }
 
+void SDL2AudioDisplayThread::setCallback(pFuncCallback callback)
+{
+    if (callback)
+        _funcCallback = callback;
+}
+
 void SDL2AudioDisplayThread::stop()
 {
     qDebug()<<"SDL2AudioDisplayThread::stop()";
     bStop = 1;
     bFirstFrame = 1;
+
+    mutex.lock();
+    while (bStopDone != 1)
+    {
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"SDL2AudioDisplayThread::stop  wait timeout";
+            break;
+        }
+    }
+    mutex.unlock();
 }
 
 void SDL2AudioDisplayThread::flush()
 {
     bFirstFrame = 1;
+    bStopDone = 0;
     player->ADispQueue.Queue->clear();
     player->ADispPCMQueue.Queue->clear();
 
@@ -271,6 +290,11 @@ void SDL2AudioDisplayThread::run()
         player->ADispPCMQueue.mutex.unlock();
     }
 
+    mutex.lock();
+    bStopDone = 1;
+    WaitCondStopDone.wakeAll();
+    mutex.unlock();
+
     qDebug()<<"SDL2AudioDisplayThread::run() stop!";
 }
 
@@ -279,6 +303,8 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
     player = NULL;
     bFirstFrame = 1;
     bStop = 0;
+    bStopDone = 0;
+    _funcCallback = NULL;
 
     pMessage = new message();
     if (!pMessage)

@@ -6,6 +6,7 @@ AudioDecodeThread::AudioDecodeThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
+    bStopDone = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -124,6 +125,17 @@ void AudioDecodeThread::stop()
 {
     bStop = 1;
     isFirstFrame = 1;
+
+    mutex.lock();
+    while (bStopDone != 1)
+    {
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"AudioDecodeThread::stop  wait timeout";
+            break;
+        }
+    }
+    mutex.unlock();
 }
 
 void AudioDecodeThread::run()
@@ -146,7 +158,7 @@ void AudioDecodeThread::run()
 
         if (pPlayerInfo->audioPacketQueue.Queue->isEmpty())
         {
-            qDebug()<<" audio Raw Queue empty !! :";
+            //qDebug()<<" audio Raw Queue empty !! :";
             continue;
         }
 
@@ -197,6 +209,11 @@ void AudioDecodeThread::run()
             pMyPkt = NULL;
         }
     }
+
+    mutex.lock();
+    bStopDone = 1;
+    WaitCondStopDone.wakeAll();
+    mutex.unlock();
     qDebug()<<"AudioDecodeThread stop!";
 
 }

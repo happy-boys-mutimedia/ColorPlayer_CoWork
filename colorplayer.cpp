@@ -7,6 +7,37 @@
 #include <QDebug>
 #include <QMessageBox>
 
+static int  _seekDoneVideo = 0;
+static int  _seekDoneAudio = 0;
+QMutex mutex;
+QWaitCondition WaitCondStopDone;
+
+void seekDoneCallBack(mediaItem eMediaItem)
+{
+    mutex.lock();
+    if (eMediaItem == mediaItem_video)
+    {
+        _seekDoneVideo = 1;
+        qDebug()<<"video seek done";
+    }
+    else if (eMediaItem == mediaItem_audio)
+    {
+        _seekDoneAudio = 1;
+        qDebug()<<"audio seek done";
+    }
+    else
+    {
+        qDebug()<<"seekDoneCallBack eMediaItem error!\n"<<eMediaItem;
+    }
+
+    if (_seekDoneVideo && _seekDoneAudio)
+    {
+        WaitCondStopDone.wakeAll();
+        qDebug()<<"video audio seekDoneCallBack ok!\n";
+    }
+    mutex.unlock();
+}
+
 ColorPlayer::ColorPlayer()
 {
     player = NULL;
@@ -17,6 +48,7 @@ ColorPlayer::ColorPlayer()
 int ColorPlayer::open(const char *url)
 {
     qDebug()<<"ColorPlayer::open IN";
+    mutex.lock();
 
     if (!player)
     {
@@ -24,6 +56,7 @@ int ColorPlayer::open(const char *url)
         if (!player)
         {
             qDebug()<<"alloc PlayerInfo fail";
+            mutex.unlock();
             return FAILED;
         }
         memset(player, 0, sizeof(PlayerInfo));
@@ -32,6 +65,7 @@ int ColorPlayer::open(const char *url)
     if (!XFFmpeg::Get()->Open(url))
     {
         qDebug()<<"ffmpeg open fail";
+        mutex.unlock();
         return FAILED;
     }
 
@@ -42,16 +76,19 @@ int ColorPlayer::open(const char *url)
     VideoOutput::Get()->initPlayerInfo(player);
     VideoOutput::Get()->initDisplayQueue(player);
     VideoOutput::Get()->initMasterClock(pMasterClock);
+    VideoOutput::Get()->setCallback(seekDoneCallBack);
     AudioDecodeThread::Get()->initPlayerInfo(player);
     AudioDecodeThread::Get()->initDecodeFrameQueue(player);
     SDL2AudioDisplayThread::Get()->initPlayerInfo(player);
     SDL2AudioDisplayThread::Get()->initDisplayQueue(player);
     SDL2AudioDisplayThread::Get()->init();
     SDL2AudioDisplayThread::Get()->initMasterClock(pMasterClock);
-
+    SDL2AudioDisplayThread::Get()->setCallback(seekDoneCallBack);
     pMasterClock->open(AUDIO_MASTER);
-
     bOpened = 1;
+
+    mutex.unlock();
+
     return SUCCESS;
 }
 
@@ -82,12 +119,10 @@ int ColorPlayer::close()
 int ColorPlayer::play()
 {
     qDebug()<< "start thread";
-    SDL2AudioDisplayThread::Get()->start();
-
     DemuxThread::Get()->start();
+    SDL2AudioDisplayThread::Get()->start();
     AudioDecodeThread::Get()->start();
     VideoDecodeThread::Get()->start();
-
     VideoOutput::Get()->start();
     if (player)
         player->playerState = PLAYER_STATE_START;
@@ -97,6 +132,7 @@ int ColorPlayer::play()
 
 int ColorPlayer::pause()
 {
+    mutex.lock();
     MessageCmd_t MsgCmd;
 
     qDebug()<< "ColorPlayer send pause cmd!!";
@@ -106,11 +142,15 @@ int ColorPlayer::pause()
     VideoOutput::Get()->queueMessage(MsgCmd);
     if (player)
         player->playerState = PLAYER_STATE_PAUSE;
+
+    mutex.unlock();
+
     return SUCCESS;
 }
 
 int ColorPlayer::resume()
 {
+    mutex.lock();
     MessageCmd_t MsgCmd;
 
     qDebug()<< "ColorPlayer send resume cmd!!";
@@ -120,6 +160,9 @@ int ColorPlayer::resume()
     VideoOutput::Get()->queueMessage(MsgCmd);
     if (player)
         player->playerState = PLAYER_STATE_RESUME;
+
+    mutex.unlock();
+
     return SUCCESS;
 }
 
@@ -214,16 +257,29 @@ void ColorPlayer::flush()
 
 int ColorPlayer::seek(float position)
 {
+    qDebug()<<"ColorPlayer::seek IN";
+    mutex.lock();
+    _seekDoneVideo = 0;
+    _seekDoneAudio = 0;
     stop();
-
     if (XFFmpeg::Get()->Seek(position) == true)
     {
         flush();
-        qDebug()<<"seek ok!\n";
     }
-
     play();
 
+    while((_seekDoneVideo != 1) || (_seekDoneVideo != 1))
+    {
+        //2s timeout
+        if (!WaitCondStopDone.wait(&mutex, 2000))
+        {
+            qDebug()<<"ColorPlayer::seek  wait timeout";
+            break;
+        }
+    }
+
+    qDebug()<<"color player seek ok!\n";
+    mutex.unlock();
     return SUCCESS;
 }
 
@@ -254,8 +310,7 @@ void ColorPlayer::deinit_context()
 
 ColorPlayer::~ColorPlayer()
 {
-    if (bOpened)
-        close();
+    qDebug()<<"ColorPlayer::~ColorPlayer()";
 
     if (!pMasterClock)
     {
