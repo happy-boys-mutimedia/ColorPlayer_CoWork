@@ -7,7 +7,10 @@ QList<myPacket *>videoPacket;
 QList<myPacket *>audioPacket;
 static myPacket myFlush_pkt;
 static AVPacket flush_pkt;
-#define MAX_SIZE (1 * 512 *1024)//1M
+#define MAX_SIZE (1 * 512 * 1024)//1M
+
+extern QWaitCondition WaitCondVideoDecodeThread;
+extern QWaitCondition WaitCondAudioDecodeThread;
 
 static double r2d(AVRational r)
 {
@@ -127,6 +130,7 @@ void DemuxThread::run()
             memcpy(&tempMyPkt->AVPkt, &pkt, sizeof(AVPacket));
             tempMyPkt->serial = pPlayerInfo->audioPacketQueue.serial;
             pPlayerInfo->audioPacketQueue.Queue->append(tempMyPkt);
+            pPlayerInfo->pWaitCondAudioDecodeThread->wakeAll();
             //qDebug()<<"A  ==> pkt.pts = "<<tempMyPkt->AVPkt.pts;
             pPlayerInfo->audioPacketQueue.Mutex.unlock();
             continue;
@@ -154,6 +158,7 @@ void DemuxThread::run()
             memcpy(&tempMyPkt->AVPkt, &pkt, sizeof(AVPacket));
             tempMyPkt->serial = pPlayerInfo->videoPacketQueue.serial;
             pPlayerInfo->videoPacketQueue.Queue->append(tempMyPkt);
+            pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
             //qDebug()<<"V  ==> pkt.pts =  "<<tempMyPkt->AVPkt.pts;
             pPlayerInfo->videoPacketQueue.Mutex.unlock();
         }

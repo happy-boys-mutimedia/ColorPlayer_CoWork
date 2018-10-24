@@ -184,6 +184,7 @@ void VideoOutput::run()
             qDebug()<<"VideoOutput get pause cmd~~ ";
             currentState = THREAD_PAUSE;
             bPaused = 1;
+            msleep(10);
             continue;
         }
 
@@ -193,9 +194,12 @@ void VideoOutput::run()
             pPlayerInfo->VDispQueue.mutex.lock();
             if (pPlayerInfo->VDispQueue.Queue->isEmpty())
             {
-                //qDebug()<<"VDispQueue empty";
-                pPlayerInfo->VDispQueue.mutex.unlock();
-                continue;
+                qDebug()<<"VDispQueue empty ==> wait";
+                if (!pPlayerInfo->pWaitCondVideoOutputThread->wait(&(pPlayerInfo->VDispQueue.mutex), 5000))
+                {
+                    qDebug()<<"pWaitCondVideoOutputThread wait timeout";
+                }
+                qDebug()<<" pWaitCondVideoOutputThread Queue ==> wait ==>wakeup";
             }
 
             pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();

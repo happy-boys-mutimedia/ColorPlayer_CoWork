@@ -158,8 +158,14 @@ void AudioDecodeThread::run()
 
         if (pPlayerInfo->audioPacketQueue.Queue->isEmpty())
         {
-            //qDebug()<<" audio Raw Queue empty !! :";
-            continue;
+            qDebug()<<" audio Raw Queue empty !! ==> wait";
+            pPlayerInfo->ADispQueue.mutex.lock();
+            if (!pPlayerInfo->pWaitCondAudioDecodeThread->wait(&(pPlayerInfo->ADispQueue.mutex), 5000))
+            {
+                qDebug()<<"pWaitCondAudioDecodeThread wait timeout";
+            }
+            qDebug()<<" audio Raw Queue ==> wait ==>wakeup";
+            pPlayerInfo->ADispQueue.mutex.unlock();
         }
 
         if (!(pFrame = GetOneValidFrame(&pPlayerInfo->audioFrameQueue)))
@@ -196,6 +202,7 @@ void AudioDecodeThread::run()
         {
             pPlayerInfo->ADispQueue.mutex.lock();
             pPlayerInfo->ADispQueue.Queue->append(pFrame);
+            pPlayerInfo->pWaitCondAudioOutputThread->wakeAll();
             //qDebug()<<"audio ==> append";
             pFrame->DecState = DecOver;
             pFrame->DispState = DispWait;

@@ -153,8 +153,14 @@ void VideoDecodeThread::run()
 
         if (pPlayerInfo->videoPacketQueue.Queue->isEmpty())
         {
-            //qDebug()<<" Video Raw Queue empty !! :";
-            continue;
+            qDebug()<<" video Raw Queue empty !! ==> wait";
+            pPlayerInfo->VDispQueue.mutex.lock();
+            if (!pPlayerInfo->pWaitCondVideoDecodeThread->wait(&(pPlayerInfo->VDispQueue.mutex), 5000))
+            {
+                qDebug()<<"pWaitCondVideoDecodeThread wait timeout";
+            }
+            qDebug()<<"video wait ==> wakeup";
+            pPlayerInfo->VDispQueue.mutex.unlock();
         }
 
         if (!(pFrame = GetOneValidFrame(&pPlayerInfo->videoFrameQueue)))
@@ -195,6 +201,7 @@ void VideoDecodeThread::run()
         {
             pPlayerInfo->VDispQueue.mutex.lock();
             pPlayerInfo->VDispQueue.Queue->append(pFrame);
+            pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
             pFrame->DecState = DecOver;
             pFrame->DispState = DispWait;
             pPlayerInfo->VDispQueue.mutex.unlock();

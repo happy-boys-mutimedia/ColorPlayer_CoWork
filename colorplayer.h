@@ -137,6 +137,10 @@ typedef struct PlayerInfo {
     FrameQueue videoFrameQueue;
     FrameQueue audioFrameQueue;
     PlayerState playerState;
+    QWaitCondition *pWaitCondAudioDecodeThread;
+    QWaitCondition *pWaitCondAudioOutputThread;
+    QWaitCondition *pWaitCondVideoDecodeThread;
+    QWaitCondition *pWaitCondVideoOutputThread;
 }PlayerInfo;
 
 class ColorPlayer

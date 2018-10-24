@@ -36,7 +36,7 @@ VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
         qDebug()<<"VideoWidget() error\n";
     }
 
-    TimerID = startTimer(10);
+    TimerID = startTimer(30);
 }
 
 Frame *pPauseFrame = NULL;

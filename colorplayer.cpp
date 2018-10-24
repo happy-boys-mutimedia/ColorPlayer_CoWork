@@ -60,6 +60,10 @@ int ColorPlayer::open(const char *url)
             return FAILED;
         }
         memset(player, 0, sizeof(PlayerInfo));
+        player->pWaitCondAudioDecodeThread = new QWaitCondition;
+        player->pWaitCondAudioOutputThread = new QWaitCondition;
+        player->pWaitCondVideoDecodeThread = new QWaitCondition;
+        player->pWaitCondVideoOutputThread = new QWaitCondition;
     }
 
     if (!XFFmpeg::Get()->Open(url))
@@ -119,11 +123,11 @@ int ColorPlayer::close()
 int ColorPlayer::play()
 {
     qDebug()<< "start thread";
-    DemuxThread::Get()->start();
     SDL2AudioDisplayThread::Get()->start();
     AudioDecodeThread::Get()->start();
     VideoDecodeThread::Get()->start();
     VideoOutput::Get()->start();
+    DemuxThread::Get()->start();
     if (player)
         player->playerState = PLAYER_STATE_START;
 
@@ -315,6 +319,26 @@ ColorPlayer::~ColorPlayer()
     if (!pMasterClock)
     {
         delete pMasterClock;
+    }
+
+    if (player->pWaitCondAudioDecodeThread)
+    {
+        delete player->pWaitCondAudioDecodeThread;
+    }
+
+    if (player->pWaitCondAudioOutputThread)
+    {
+        delete player->pWaitCondAudioOutputThread;
+    }
+
+    if (player->pWaitCondVideoDecodeThread)
+    {
+        delete player->pWaitCondVideoDecodeThread;
+    }
+
+    if (player->pWaitCondVideoOutputThread)
+    {
+        delete player->pWaitCondVideoOutputThread;
     }
 
     if (!player)

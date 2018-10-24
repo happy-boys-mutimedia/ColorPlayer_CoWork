@@ -247,13 +247,20 @@ void SDL2AudioDisplayThread::run()
         if (!(pPCMBuffer = GetOneValidPCMBuffer()))
         {
             //qDebug()<<"GetOneValidPCMBuffer empty";
+            msleep(10);
             continue; 
         }
 
         if (player->ADispQueue.Queue->isEmpty())
         {
-            //qDebug()<<"ADispQueue empty";
-            continue;
+            qDebug()<<"ADispQueue empty ==> wait";
+            player->ADispQueue.mutex.lock();
+            if (!player->pWaitCondAudioOutputThread->wait(&(player->ADispQueue.mutex), 5000))
+            {
+                qDebug()<<"pWaitCondAudioOutputThread wait timeout";
+            }
+            qDebug()<<" pWaitCondAudioOutputThread Queue ==> wait ==>wakeup";
+            player->ADispQueue.mutex.unlock();
         }
 
         player->ADispQueue.mutex.lock();
