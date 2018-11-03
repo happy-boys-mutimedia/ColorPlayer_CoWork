@@ -1,4 +1,4 @@
-#include "demuxthread.h"
+﻿#include "demuxthread.h"
 #include <QList>
 #include "ffmpeg.h"
 #include <QDebug>
@@ -18,7 +18,6 @@ static double r2d(AVRational r)
 static void flushPacketQueue(PacketQueue *pPacketQueue)
 {
     int i;
-    int tmp = 0;
     myPacket *pMyPkt = NULL;
     int listSize = pPacketQueue->Queue->count();
 
@@ -28,7 +27,7 @@ static void flushPacketQueue(PacketQueue *pPacketQueue)
         if (!pPacketQueue->Queue->isEmpty())
         {
             pMyPkt = pPacketQueue->Queue->takeFirst();
-            if (pMyPkt && (pMyPkt->AVPkt.data != flush_pkt.data))
+            if (pMyPkt)
             {
                 av_free_packet(&pMyPkt->AVPkt);
                 free(pMyPkt);
@@ -79,7 +78,6 @@ void DemuxThread::stop()
 
 void DemuxThread::run()
 {
-    int ret = -1;
     myPacket *tempMyPkt = NULL;
 
     int bEof = 0;
