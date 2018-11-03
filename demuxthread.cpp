@@ -2,15 +2,13 @@
 #include <QList>
 #include "ffmpeg.h"
 #include <QDebug>
+#include "videodecodethread.h"
+#include "audiodecodethread.h"
 
 QList<myPacket *>videoPacket;
 QList<myPacket *>audioPacket;
-static myPacket myFlush_pkt;
-static AVPacket flush_pkt;
-#define MAX_SIZE (1 * 512 * 1024)//1M
 
-extern QWaitCondition WaitCondVideoDecodeThread;
-extern QWaitCondition WaitCondAudioDecodeThread;
+#define MAX_SIZE (1 * 512 * 1024)//1M
 
 static double r2d(AVRational r)
 {
@@ -46,7 +44,6 @@ DemuxThread::DemuxThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
-    bStopDone = 0;
     bFirstVideoPkt = 1;
 
     pMessage = new message();
@@ -57,11 +54,14 @@ DemuxThread::DemuxThread()
 }
 DemuxThread::~DemuxThread()
 {
-    qDebug()<<"~DemuxThread()";
-    this->terminate();//stop run thread
+    qDebug()<<"~DemuxThread() IN";
+    stop();//stop run thread
 
-    flushPacketQueue(&pPlayerInfo->videoPacketQueue);
-    flushPacketQueue(&pPlayerInfo->audioPacketQueue);
+    if (pPlayerInfo)
+    {
+        flushPacketQueue(&pPlayerInfo->videoPacketQueue);
+        flushPacketQueue(&pPlayerInfo->audioPacketQueue);
+    }
 
     if (pMessage)
     {
@@ -73,16 +73,8 @@ void DemuxThread::stop()
 {
     bStop = 1;
 
-    mutex.lock();
-    while (bStopDone != 1)
-    {
-        if (!WaitCondStopDone.wait(&mutex, 2000))
-        {
-            qDebug()<<"DemuxThread::stop  wait timeout";
-            break;
-        }
-    }
-    mutex.unlock();
+    wait();
+    qDebug()<<"DemuxThread::stop  wait done";
 }
 
 void DemuxThread::run()
@@ -90,6 +82,7 @@ void DemuxThread::run()
     int ret = -1;
     myPacket *tempMyPkt = NULL;
 
+    int bEof = 0;
     bStop = 0;
     bFirstVideoPkt = 1;
     qDebug()<<"DemuxThread::run() in";
@@ -103,13 +96,25 @@ void DemuxThread::run()
 
         if ((pPlayerInfo->videoPacketQueue.Queue->count() + pPlayerInfo->audioPacketQueue.Queue->count()) * sizeof(AVPacket) > MAX_SIZE)
         {
-            msleep(100);
+            msleep(1000);
             //qDebug()<<"full ===="<<"videoPacket :"<<pPlayerInfo->videoPacketQueue.Queue->count();
             //qDebug()<<"full ===="<<"audioPacket :"<<pPlayerInfo->audioPacketQueue.Queue->count();
             continue;
         }
 
-        AVPacket pkt = XFFmpeg::Get()->Read();//读取一包
+        AVPacket pkt = XFFmpeg::Get()->Read(&bEof);//读取一包
+        if (bEof == 1)
+        {
+            bStop = 1;
+            MessageCmd_t MsgCmd;
+            MsgCmd.cmd = MESSAGE_CMD_FORCE_EOF;
+            MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+            VideoDecodeThread::Get()->queueMessage(MsgCmd);
+            AudioDecodeThread::Get()->queueMessage(MsgCmd);
+
+            continue;
+        }
+
         if (pkt.size <= 0)
         {
             msleep(10);
@@ -130,7 +135,6 @@ void DemuxThread::run()
             memcpy(&tempMyPkt->AVPkt, &pkt, sizeof(AVPacket));
             tempMyPkt->serial = pPlayerInfo->audioPacketQueue.serial;
             pPlayerInfo->audioPacketQueue.Queue->append(tempMyPkt);
-            pPlayerInfo->pWaitCondAudioDecodeThread->wakeAll();
             //qDebug()<<"A  ==> pkt.pts = "<<tempMyPkt->AVPkt.pts;
             pPlayerInfo->audioPacketQueue.Mutex.unlock();
             continue;
@@ -158,15 +162,10 @@ void DemuxThread::run()
             memcpy(&tempMyPkt->AVPkt, &pkt, sizeof(AVPacket));
             tempMyPkt->serial = pPlayerInfo->videoPacketQueue.serial;
             pPlayerInfo->videoPacketQueue.Queue->append(tempMyPkt);
-            pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
             //qDebug()<<"V  ==> pkt.pts =  "<<tempMyPkt->AVPkt.pts;
             pPlayerInfo->videoPacketQueue.Mutex.unlock();
         }
     }
-    mutex.lock();
-    bStopDone = 1;
-    WaitCondStopDone.wakeAll();
-    mutex.unlock();
     qDebug()<<"DemuxThread::run stop!";
 }
 
@@ -175,10 +174,6 @@ int DemuxThread::initRawQueue(PlayerInfo *pPI)
     pPI->videoPacketQueue.Queue = &videoPacket;
     pPI->audioPacketQueue.Queue = &audioPacket;
 
-    //for flush
-    av_init_packet(&flush_pkt);
-    flush_pkt.data = (uint8_t *)&flush_pkt;
-    myFlush_pkt.AVPkt = flush_pkt;
 
     return SUCCESS;
 }
@@ -186,7 +181,7 @@ int DemuxThread::initRawQueue(PlayerInfo *pPI)
 void DemuxThread::deinitRawQueue(PlayerInfo *pPI)
 {
     bFirstVideoPkt = 1;
-    bStopDone = 0;
+
     if (pPI)
     {
         flushPacketQueue(&pPI->audioPacketQueue);

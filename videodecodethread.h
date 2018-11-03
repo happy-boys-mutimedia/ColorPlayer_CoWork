@@ -33,7 +33,6 @@ private:
     PlayerInfo *pPlayerInfo;
     message *pMessage;
     int bStop;
-    int bStopDone;
     QMutex mutex;
     QWaitCondition WaitCondStopDone;
 };

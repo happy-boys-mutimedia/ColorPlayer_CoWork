@@ -1,4 +1,4 @@
-#include "widget.h"
+﻿#include "widget.h"
 #include "ui_widget.h"
 #include <QMessageBox>
 #include <QFileDialog>
@@ -9,6 +9,9 @@
 #include "colorplayer.h"
 #include <QDebug>
 #include <QInputDialog>
+#include <QDir>
+#include <QListWidget>
+
 
 static bool isPressedSlider = false;
 static bool isPlay = true;
@@ -27,29 +30,35 @@ Widget::Widget(QWidget *parent) :
 
     status = new QStatusBar(this);
 
-    menu[0] = new QMenu("文件");
+    menu[0] = new QMenu("Files");
 
-    act[0] = new QAction("打开",this);
+    act[0] = new QAction("open",this);
     act[0]->setShortcut(QKeySequence::Open);
     act[0]->setStatusTip(tr("open media file"));
-    act[1] = new QAction("关闭",this);
+    act[1] = new QAction("close",this);
     act[1]->setShortcut(QKeySequence::Quit);
     act[1]->setStatusTip(tr("exit"));
     menu[0]->addAction(act[0]);
     menu[0]->addAction(act[1]);
 
-    menu[1] = new QMenu("操作");
-    menu[1]->addAction("暂停/播放");
-    menu[1]->addAction("打开网络串流");
-    menu[1]->addAction("同步/不同步音视频");
+    menu[1] = new QMenu("action");
+    menu[1]->addAction("pause/play");
+    menu[1]->addAction("previous media file");
+    menu[1]->addAction("next media file");
+    menu[1]->addAction("open network stream");
+    menu[1]->addAction("avsync/no avsync");
 
-    menu[2] = new QMenu("帮助");
-    menu[2]->addAction("关于");
+    menu[2] = new QMenu("playlist");
+    menu[2]->addAction("list");
+
+    menu[3] = new QMenu("help");
+    menu[3]->addAction("aboutme");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
     menuBar->addMenu(menu[1]);
     menuBar->addMenu(menu[2]);
+    menuBar->addMenu(menu[3]);
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
@@ -59,10 +68,12 @@ Widget::Widget(QWidget *parent) :
 
     bOpened = 0;
     bNeedAvsync = 1;
+    listWidget = NULL;
 }
 
 Widget::~Widget()
 {
+    qDebug()<<"Widget::~Widget()";
     delete menu[0];
     delete menu[1];
     delete act[0];
@@ -70,14 +81,70 @@ Widget::~Widget()
     delete menuBar;
     delete ui;
 
+    if (listWidget)
+    {
+        for(int i = 0; i < listWidget->count(); i++)
+        {
+            QListWidgetItem *item = NULL;
+            item = listWidget->takeItem(i);
+            delete item;
+        }
+        delete listWidget;
+    }
+
     //restore window sleep
     SetThreadExecutionState(ES_CONTINUOUS);
 }
 
 void Widget::on_OpenButton_clicked()
 {
-    QString name = QFileDialog::getOpenFileName(this, QString::fromLocal8Bit("please choose file"));
-    openFile(name);
+    url = QFileDialog::getOpenFileName(this, QString::fromLocal8Bit("please choose file"));
+    openFile(url);
+
+    QFileInfo urlFileInfo(url);
+    QDir dir = urlFileInfo.absoluteDir();
+    if (!dir.exists())
+    {
+        qDebug()<<"dir no exits";
+        return;
+    }
+    qDebug()<<"dir ==>"<<dir.absolutePath();
+
+    QStringList filters;
+    filters << "*.MKV" << "*.mkv";
+    filters << "*.RMVB" << "*.rmvb"<<"*.rm";
+    filters << "*.MOV" << "*.mov";
+    filters << "*.AVI" << "*.avi";
+    filters << "*.MP4" << "*.mp4";
+    filters << "*.TS" << "*.ts";
+    filters << "*.DIVX" << "*.divx";
+    filters << "*.ASF" << "*.asf";
+    filters << "*.MPG" << "*.mpg";
+    filters << "*.FLV" << "*.flv";
+    filters << "*.3GP" << "*.3gp";
+    filters << "*.MPEG" << "*.mpeg";
+    filters << "*.WMV" << "*.wmv";
+    filters << "*.MPG" << "*.mpg";
+    filters << "*.aac" << "*.m4a";
+    filters << "*.flac" << "*.m4a";
+    filters << "*.mp3" << "*.ogg";
+    filters << "*.mid" << "*.asx";
+    filters << "*.ra" << "*.wma";
+
+    dir.setFilter(QDir::Files);
+    dir.setSorting(QDir::Name);
+    dir.setNameFilters(filters);
+
+    QFileInfoList list = dir.entryInfoList();
+    listWidget = new QListWidget();
+    for (int i = 0; i < list.size(); i++)
+    {
+        QFileInfo fileInfo = list.at(i);
+        qDebug()<<"list of names ==> "<<i<<":"<<fileInfo.fileName();
+        new QListWidgetItem(fileInfo.absoluteFilePath(),listWidget);
+    }
+
+    connect(listWidget,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(list_doubleclicked(QListWidgetItem*)));
 }
 
 void Widget::on_PlayButton_clicked()
@@ -118,6 +185,7 @@ void Widget::on_PlaySlider_sliderReleased()
     float pos = 0;
     pos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
     ColorPlayer::Get()->seek(pos);
+    isPlay = !isPlay;
 }
 
 void Widget::resizeEvent(QResizeEvent *e)
@@ -170,6 +238,7 @@ void Widget::keyPressEvent(QKeyEvent *event)
             CurPos = 1.0;
         }
         ColorPlayer::Get()->seek(CurPos);
+        isPlay = !isPlay;
     }
     else if(event->key() == Qt::Key_H)
     {
@@ -182,7 +251,15 @@ void Widget::keyPressEvent(QKeyEvent *event)
             CurPos = 0;
         }
         ColorPlayer::Get()->seek(CurPos);
+        isPlay = !isPlay;
     }
+}
+
+void Widget::closeEvent(QCloseEvent *event)
+{
+    qDebug()<<"Widget::closeEvent IN";
+    if (listWidget)
+        listWidget->hide();
 }
 
 void Widget::openFile(QString name)
@@ -233,13 +310,13 @@ void Widget::openFile(QString name)
     //获取屏幕大小
     QDesktopWidget* desktopWidget = QApplication::desktop();
     QRect clientRect = desktopWidget->availableGeometry();
-    int deskWidth = clientRect.width();
-    int deskHeight = clientRect.height();
+    deskWidth = clientRect.width();
+    deskHeight = clientRect.height();
     qDebug()<<"w "<<deskWidth<<"h "<<deskHeight;
 
     //按视频大小调整播放屏幕大小
-    int videoWidth = ColorPlayer::Get()->get_video_width();
-    int videoHeight = ColorPlayer::Get()->get_video_height();
+    videoWidth = ColorPlayer::Get()->get_video_width();
+    videoHeight = ColorPlayer::Get()->get_video_height();
     if (videoWidth <= deskWidth && videoHeight <= deskHeight)
     {
         this->move((deskWidth - videoWidth)/2, 0);
@@ -252,41 +329,138 @@ void Widget::openFile(QString name)
     }
     qDebug()<<"=======================open successful!!!!!!!=========================";
     isPlay = false;
+
 }
 
 void Widget::trigerMenu(QAction* act)
 {
-    if(act->text() == "打开")
+    if(act->text() == "open")
     {
         qDebug()<<"press down";
         on_OpenButton_clicked();
     }
 
-    if(act->text() == "暂停/播放")
+    if(act->text() == "pause/play")
     {
         on_PlayButton_clicked();
     }
 
-    if(act->text() == "关闭")
+    if(act->text() == "previous media file")
+    {
+        int currenRow = 0;
+        qDebug()<<"open ==> count -----> "<<listWidget->count();
+        for (int i = 0; i < listWidget->count(); i++)
+        {
+            QListWidgetItem * item = listWidget->item(i);
+            QString name = item->text();
+
+            if (!name.compare(url))
+            {
+                currenRow = i;
+                if (i + 1 == listWidget->count())
+                {
+                    i = 0;
+                }
+                else
+                {
+                    i = i + 1;
+                }
+                item = listWidget->item(i);
+                if (item)
+                {
+                    name = item->text();
+                }
+                else
+                {
+                    return;
+                }
+                url = name;
+                openFile(name);
+                qDebug()<<"open ==> name -----> "<<item->text();
+            }
+        }
+    }
+
+    if(act->text() == "next media file")
+    {
+        int currenRow = 0;
+
+        for (int i = 0; i < listWidget->count(); i++)
+        {
+            QListWidgetItem * item = listWidget->item(i);
+            QString name = item->text();
+
+            if (!name.compare(url))
+            {
+                currenRow = i;
+                if (i - 1 == -1)
+                {
+                    i = listWidget->count() - 1;
+                }
+                else
+                {
+                    i = i - 1;
+                }
+                item = listWidget->item(i);
+                if (item)
+                {
+                    name = item->text();
+                }
+                else
+                {
+                    return;
+                }
+                url = name;
+                openFile(name);
+                qDebug()<<"open ==> name -----> "<<item->text();
+            }
+        }
+    }
+
+    if(act->text() == "close")
     {
         ColorPlayer::Get()->close();
     }
 
-    if(act->text() == "打开网络串流")
+    if(act->text() == "open network stream")
     {
-        QString text = QInputDialog::getText(this, "网络串流URL", "输入URL");
+        QString text = QInputDialog::getText(this, "network URL", "Please inter URL");
         openFile(text);
     }
 
-    if(act->text() == "同步/不同步音视频")
+    if(act->text() == "avsync/no avsync")
     {
         on_Avsync_clicked();
     }
 
-    if(act->text() == "关于")
+    if(act->text() == "aboutme")
     {
         QMessageBox::about(this, "about me", "Created by QiujieLu \nmail:1511248339@qq.com \ngithub:https://github.com/happy-boys-mutimedia/ColorPlayer_CoWork");
     }
+
+    if(act->text() == "list")
+    {
+        if (listWidget)
+        {
+            listWidget->resize(300, videoHeight);
+            listWidget->move((deskWidth + videoWidth)/2,0);
+            listWidget->show();
+        }
+        else
+        {
+            QMessageBox::information(this, "err", "list is empty!");
+        }
+    }
 }
 
+void Widget::list_doubleclicked(QListWidgetItem* item)
+{
+    qDebug()<<"list_doubleclicked IN";
+    qDebug()<<"text:"<<item->text();
+    QString name = item->text();
+    url = name;
+    openFile(name);
+
+    listWidget->hide();
+}
 

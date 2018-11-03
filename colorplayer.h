@@ -179,6 +179,7 @@ private:
     PlayerInfo *player;
     MasterClock *pMasterClock;
     int bOpened;
+    int isOnlyMusic;
 };
 
 

@@ -39,7 +39,6 @@ private:
     MasterClock *pMasterClock;
     Frame *pPauseFrame;
     int bStop;
-    int bStopDone;
     int bFirstFrame;
     QMutex mutex;
     QWaitCondition WaitCondStopDone;

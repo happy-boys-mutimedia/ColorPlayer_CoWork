@@ -1,4 +1,5 @@
 #include "audiodecodethread.h"
+#include "audioplay_sdl2.h"
 #include "ffmpeg.h"
 #include "QDebug"
 
@@ -6,7 +7,6 @@ AudioDecodeThread::AudioDecodeThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
-    bStopDone = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -125,25 +125,23 @@ void AudioDecodeThread::stop()
 {
     bStop = 1;
     isFirstFrame = 1;
+    if (pPlayerInfo)
+        pPlayerInfo->pWaitCondAudioDecodeThread->wakeAll();
 
-    mutex.lock();
-    while (bStopDone != 1)
-    {
-        if (!WaitCondStopDone.wait(&mutex, 2000))
-        {
-            qDebug()<<"AudioDecodeThread::stop  wait timeout";
-            break;
-        }
-    }
-    mutex.unlock();
+    wait();
+    qDebug()<<"AudioDecodeThread::stop  wait done";
 }
 
 void AudioDecodeThread::run()
 {
     int ret = -1;
+    int bEof = 0;
     Frame *pFrame = NULL;
     myPacket *pMyPkt = NULL;
 
+    MessageCmd_t Msgcmd;
+    Msgcmd.cmd = MESSAGE_CMD_NONE;
+    Msgcmd.cmdType = MESSAGE_QUEUE_TYPES;
     qDebug()<<"AudioDecodeThread::run() in";
 
     bStop = 0;
@@ -156,22 +154,43 @@ void AudioDecodeThread::run()
             continue;
         }
 
+        if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_FORCE_EOF))
+        {
+            qDebug()<<"Audio decode thread get EOF cmd~";
+            bEof = 1;
+        }
+
         if (pPlayerInfo->audioPacketQueue.Queue->isEmpty())
         {
-            qDebug()<<" audio Raw Queue empty !! ==> wait";
-            pPlayerInfo->ADispQueue.mutex.lock();
-            if (!pPlayerInfo->pWaitCondAudioDecodeThread->wait(&(pPlayerInfo->ADispQueue.mutex), 5000))
+            if (bEof == 1)
             {
-                qDebug()<<"pWaitCondAudioDecodeThread wait timeout";
+                bStop = 1;//stop audio decode thread
+
+                MessageCmd_t MsgCmd;
+                MsgCmd.cmd = MESSAGE_CMD_FORCE_EOF;
+                MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+                SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
+
+                continue;
             }
-            qDebug()<<" audio Raw Queue ==> wait ==>wakeup";
-            pPlayerInfo->ADispQueue.mutex.unlock();
+            else
+            {
+                qDebug()<<" audio Raw Queue empty !!";
+                msleep(1);
+                continue;
+            }
         }
 
         if (!(pFrame = GetOneValidFrame(&pPlayerInfo->audioFrameQueue)))
         {
-            //qDebug()<<"Audio GetOneValidFrame fail";
-            msleep(10);
+            if (!bStop)
+            {
+                //qDebug()<<"Audio GetOneValidFrame fail ==> sleep wait";
+                pPlayerInfo->ADispQueue.mutex.lock();
+                pPlayerInfo->pWaitCondAudioDecodeThread->wait(&(pPlayerInfo->ADispQueue.mutex));
+                //qDebug()<<" Audio GetOneValidFrame fail ==> ==>wakeup";
+                pPlayerInfo->ADispQueue.mutex.unlock();
+            }
             continue;
         }
 
@@ -181,46 +200,36 @@ void AudioDecodeThread::run()
             continue;
         }
 
-        if (!XFFmpeg::Get()->ic)
-        {
-            msleep(10);
-            continue;
-        }
-
         ret = XFFmpeg::Get()->Decode(&pMyPkt->AVPkt, pFrame->frame);
         if (ret == 0)
         {
             qDebug()<<"Audio Dec error!";
             av_free_packet(&pMyPkt->AVPkt);
+            if (pMyPkt != NULL)
+            {
+                free((void *)pMyPkt);
+                pMyPkt = NULL;
+            }
             continue;
-        }
-        av_free_packet(&pMyPkt->AVPkt);
-
-        //qDebug()<<"Aduio ==> pts = "<<pFrame->frame->pts;
-
-        if (pPlayerInfo->ADispQueue.Queue->count() < pPlayerInfo->ADispQueue.size)
-        {
-            pPlayerInfo->ADispQueue.mutex.lock();
-            pPlayerInfo->ADispQueue.Queue->append(pFrame);
-            pPlayerInfo->pWaitCondAudioOutputThread->wakeAll();
-            //qDebug()<<"audio ==> append";
-            pFrame->DecState = DecOver;
-            pFrame->DispState = DispWait;
-            pPlayerInfo->ADispQueue.mutex.unlock();
         }
 
         //free malloc pkt
+        av_free_packet(&pMyPkt->AVPkt);
         if (pMyPkt != NULL)
         {
             free((void *)pMyPkt);
             pMyPkt = NULL;
         }
-    }
+        //qDebug()<<"Aduio ==> pts = "<<pFrame->frame->pts;
 
-    mutex.lock();
-    bStopDone = 1;
-    WaitCondStopDone.wakeAll();
-    mutex.unlock();
+        pPlayerInfo->ADispQueue.mutex.lock();
+        pFrame->DecState = DecOver;
+        pFrame->DispState = DispWait;
+        pPlayerInfo->ADispQueue.Queue->append(pFrame);
+        //qDebug()<<"audio ==> append";
+        pPlayerInfo->pWaitCondAudioOutputThread->wakeAll();
+        pPlayerInfo->ADispQueue.mutex.unlock();
+    }
     qDebug()<<"AudioDecodeThread stop!";
 
 }
@@ -288,8 +297,9 @@ void AudioDecodeThread::queueMessage(MessageCmd_t MsgCmd)
 
 AudioDecodeThread::~AudioDecodeThread()
 {
-    qDebug()<<"~AudioDisplayThread";
-    this->terminate();//stop run thread
+    qDebug()<<"~AudioDisplayThread IN";
+    stop();//stop run thread
+
     for (int i = 0; i < pPlayerInfo->audioFrameQueue.size; i++)
     {
         if(pPlayerInfo->audioFrameQueue.queue[i].frame)

@@ -78,7 +78,7 @@ bool XFFmpeg::Open(const char *path)
         {
             videostreamidx = i;
             video_avctx = ic->streams[i]->codec;
-            qDebug()<<"videostreamidx "<<videostreamidx;
+            qDebug()<<"==>videostreamidx "<<videostreamidx;
             fps = r2d(ic->streams[i]->r_frame_rate);
             qDebug()<<"ffmpeg video r_frame_rate:"<<r2d(ic->streams[i]->r_frame_rate);
             AVCodec *codec = avcodec_find_decoder(codecCTX_tmp->codec_id);
@@ -109,7 +109,7 @@ bool XFFmpeg::Open(const char *path)
             audioStreamidx = i;
             qDebug()<<"audio duration==>"<<ic->streams[i]->duration<<"frames "<<ic->streams[i]->codec->frame_number;
             audio_avctx = ic->streams[i]->codec;
-            qDebug()<<"audioStreamidx "<<audioStreamidx;
+            qDebug()<<"==>audioStreamidx "<<audioStreamidx;
             AVCodec *codec = avcodec_find_decoder(codecCTX_tmp->codec_id);
             if (codec == NULL || (avcodec_open2(codecCTX_tmp, codec, NULL) < 0))
             {
@@ -165,6 +165,18 @@ void XFFmpeg::Close()
         swr_free(&SwrCtx);
     }
 
+    if (video_avctx)
+    {
+        avcodec_close(video_avctx);
+        video_avctx = NULL;
+    }
+
+	if (audio_avctx)
+    {
+        avcodec_close(audio_avctx);
+        audio_avctx = NULL;
+    }
+
     if (ic)
     {
         avformat_close_input(&ic);
@@ -185,7 +197,7 @@ std::string XFFmpeg::GetError()
     return re;
 }
 
-AVPacket XFFmpeg::Read()
+AVPacket XFFmpeg::Read(int *pEof)
 {
     AVPacket pkt;
     memset(&pkt, 0, sizeof(AVPacket));
@@ -195,12 +207,27 @@ AVPacket XFFmpeg::Read()
         return pkt;
     }
     int err = av_read_frame(ic, &pkt);
-    if (err != 0)
+    if (err == AVERROR_EOF)
     {
-        av_strerror(err, errorbuf, sizeof(errorbuf));
+        *pEof = 1;
+        qDebug()<<"XFFmpeg::Read ==> end of the file";
+        //av_strerror(err, errorbuf, sizeof(errorbuf));
     }
 
     return pkt;
+}
+
+int XFFmpeg::IsOnlyMusic(void)
+{
+    if (audioStreamidx != -1 && videostreamidx == -1)
+    {
+        qDebug()<<"is only music mode";
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 int XFFmpeg::GetPts(const AVPacket *pkt)
@@ -219,8 +246,16 @@ int XFFmpeg::GetPts(const AVPacket *pkt)
 
 void XFFmpeg::Flush()
 {
-    avcodec_flush_buffers(video_avctx);
-    avcodec_flush_buffers(audio_avctx);
+    mutex.lock();
+    if (videostreamidx != -1)
+    {
+        avcodec_flush_buffers(video_avctx);
+    }
+    if (audioStreamidx != -1)
+    {
+        avcodec_flush_buffers(audio_avctx);
+    }
+    mutex.unlock();
 }
 
 int XFFmpeg::Decode(const AVPacket *pkt, AVFrame *frame)
@@ -285,7 +320,7 @@ int XFFmpeg::Decode(const AVPacket *pkt, AVFrame *frame)
 
 int XFFmpeg::PutFrameToConvert(int StreamID, AVFrame *pFrame)
 {
-    mutex.lock();
+    mutex_putConvert.lock();
 
     if (StreamID == audioStreamidx && pFrame != NULL)
     {
@@ -298,11 +333,11 @@ int XFFmpeg::PutFrameToConvert(int StreamID, AVFrame *pFrame)
     else
     {
         qDebug()<<"error streamID";
-        mutex.unlock();
+        mutex_putConvert.unlock();
         return -1;
     }
 
-    mutex.unlock();
+    mutex_putConvert.unlock();
     return 0;
 }
 

@@ -37,14 +37,16 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
     SDL_memset(stream, 0, len);
 
     pADT->player->ADispPCMQueue.mutex.lock();
-    if (pADT->player->ADispPCMQueue.Queue->isEmpty())
+    if (!pADT->player->ADispPCMQueue.Queue->isEmpty())
+    {
+        pPCMBuffer = pADT->player->ADispPCMQueue.Queue->takeFirst();
+    }
+    else
     {
         //qDebug()<<"ADispPCMQueue empty";
         pADT->player->ADispPCMQueue.mutex.unlock();
         return;
     }
-
-    pPCMBuffer = pADT->player->ADispPCMQueue.Queue->takeFirst();
     pADT->player->ADispPCMQueue.mutex.unlock();
 
     if (pADT->bFirstFrame)
@@ -172,26 +174,18 @@ void SDL2AudioDisplayThread::setCallback(pFuncCallback callback)
 
 void SDL2AudioDisplayThread::stop()
 {
-    qDebug()<<"SDL2AudioDisplayThread::stop()";
     bStop = 1;
     bFirstFrame = 1;
+    if (player)
+        player->pWaitCondAudioOutputThread->wakeAll();
 
-    mutex.lock();
-    while (bStopDone != 1)
-    {
-        if (!WaitCondStopDone.wait(&mutex, 2000))
-        {
-            qDebug()<<"SDL2AudioDisplayThread::stop  wait timeout";
-            break;
-        }
-    }
-    mutex.unlock();
+    wait();
+    qDebug()<<"SDL2AudioDisplayThread::stop  wait done";
 }
 
 void SDL2AudioDisplayThread::flush()
 {
     bFirstFrame = 1;
-    bStopDone = 0;
     player->ADispQueue.Queue->clear();
     player->ADispPCMQueue.Queue->clear();
 
@@ -206,6 +200,7 @@ void SDL2AudioDisplayThread::flush()
 void SDL2AudioDisplayThread::run()
 {
     Frame *pFrame = NULL;
+    int bEof = 0;
     PCMBuffer_t *pPCMBuffer = NULL;
     MessageCmd_t Msgcmd;
     Msgcmd.cmd = MESSAGE_CMD_NONE;
@@ -213,6 +208,7 @@ void SDL2AudioDisplayThread::run()
 
     threadState currentState = THREAD_NONE;
     qDebug()<<"SDL2AudioDisplayThread::run() IN";
+    SDL_PauseAudio(0);
 
     bStop = 0;
     while(!bStop)
@@ -225,50 +221,74 @@ void SDL2AudioDisplayThread::run()
 
         if (currentState == THREAD_PAUSE)
         {
-            if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_RESUME))
+            if (pMessage->message_dequeue(&Msgcmd) == SUCCESS)
             {
-                qDebug()<<"SDL2AudioDisplayThread get resume cmd~";
-                currentState = THREAD_START;
-                SDL_PauseAudio(0);
+                if (Msgcmd.cmd == MESSAGE_CMD_RESUME)
+                {
+                    qDebug()<<"SDL2AudioDisplayThread get resume cmd~";
+                    currentState = THREAD_START;
+                    SDL_PauseAudio(0);
+                    continue;
+                }
+                else if (Msgcmd.cmd == MESSAGE_CMD_SEEK)
+                {
+                    qDebug()<<"SDL2AudioDisplayThread get seek cmd~";
+                    currentState = THREAD_SEEK;
+                    SDL_PauseAudio(0);
+                    continue;
+                }
             }
-            msleep(10);
+            msleep(100);
             continue;
         }
 
-        if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_PAUSE))
+        if (pMessage->message_dequeue(&Msgcmd) == SUCCESS)
         {
-            qDebug()<<"SDL2AudioDisplayThread get pause cmd~";
-            currentState = THREAD_PAUSE;
-            SDL_PauseAudio(1);
-            msleep(10);
-            continue;
+            if (Msgcmd.cmd == MESSAGE_CMD_PAUSE)
+            {
+                qDebug()<<"SDL2AudioDisplayThread get pause cmd~";
+                currentState = THREAD_PAUSE;
+                SDL_PauseAudio(1);
+                continue;
+            }
+            else if (Msgcmd.cmd == MESSAGE_CMD_FORCE_EOF)
+            {
+                qDebug()<<"SDL2AudioDisplayThread get EOF cmd~";
+                bEof = 1;
+            }
         }
 
         if (!(pPCMBuffer = GetOneValidPCMBuffer()))
         {
             //qDebug()<<"GetOneValidPCMBuffer empty";
-            msleep(10);
+            msleep(50);
             continue; 
         }
 
+        player->ADispQueue.mutex.lock();
         if (player->ADispQueue.Queue->isEmpty())
         {
-            qDebug()<<"ADispQueue empty ==> wait";
-            player->ADispQueue.mutex.lock();
-            if (!player->pWaitCondAudioOutputThread->wait(&(player->ADispQueue.mutex), 5000))
+            if (bEof)
             {
-                qDebug()<<"pWaitCondAudioOutputThread wait timeout";
+                bStop = 1;
+                player->ADispQueue.mutex.unlock();
+                continue;
             }
-            qDebug()<<" pWaitCondAudioOutputThread Queue ==> wait ==>wakeup";
-            player->ADispQueue.mutex.unlock();
+            else if (!bStop)
+            {
+                //qDebug()<<"ADispQueue empty ==> wait";
+                player->pWaitCondAudioOutputThread->wait(&(player->ADispQueue.mutex));
+                player->ADispQueue.mutex.unlock();
+                //qDebug()<<" pWaitCondAudioOutputThread Queue ==> wait ==>wakeup";
+                continue;
+            }
         }
-
-        player->ADispQueue.mutex.lock();
-        if ((!player->ADispQueue.Queue->isEmpty()))
+        else
         {
             pFrame = player->ADispQueue.Queue->takeFirst();
         }
         player->ADispQueue.mutex.unlock();
+
         if (pFrame == NULL)
         {
             continue;
@@ -283,12 +303,14 @@ void SDL2AudioDisplayThread::run()
             pFrame->DecState = DecWait;
             pFrame->DispState = DispOver;
             pPCMBuffer->state = DISP_DONE;
+            player->pWaitCondAudioDecodeThread->wakeAll();
             continue;
         }
 
         pPCMBuffer->pts = pFrame->frame->pts;
         pFrame->DecState = DecWait;
         pFrame->DispState = DispOver;
+        player->pWaitCondAudioDecodeThread->wakeAll();
 
         player->ADispPCMQueue.mutex.lock();
         pPCMBuffer->state = DISP_WAIT;
@@ -296,12 +318,6 @@ void SDL2AudioDisplayThread::run()
         player->ADispPCMQueue.Queue->append(pPCMBuffer);
         player->ADispPCMQueue.mutex.unlock();
     }
-
-    mutex.lock();
-    bStopDone = 1;
-    WaitCondStopDone.wakeAll();
-    mutex.unlock();
-
     qDebug()<<"SDL2AudioDisplayThread::run() stop!";
 }
 
@@ -310,7 +326,6 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
     player = NULL;
     bFirstFrame = 1;
     bStop = 0;
-    bStopDone = 0;
     _funcCallback = NULL;
 
     pMessage = new message();
@@ -366,10 +381,11 @@ void SDL2AudioDisplayThread::deinit()
 
 SDL2AudioDisplayThread::~SDL2AudioDisplayThread()
 {
+    qDebug()<<"~SDL2AudioDisplayThread() IN";
     SDL_CloseAudio();//Close SDL
     SDL_Quit();
 
-    this->terminate();//stop run thread
+    stop();
 
     if (pMessage)
     {
@@ -387,8 +403,6 @@ SDL2AudioDisplayThread::~SDL2AudioDisplayThread()
         PCMBuffers[i].bufferSize = 0;
         PCMBuffers[i].pts = -1;
     }
-
-    qDebug()<<"~SDL2AudioDisplayThread()";
 }
 
 

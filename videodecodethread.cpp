@@ -1,4 +1,5 @@
 #include "videodecodethread.h"
+#include "videooutput.h"
 #include "ffmpeg.h"
 #include <QDebug>
 
@@ -6,7 +7,6 @@ VideoDecodeThread::VideoDecodeThread()
 {
     pPlayerInfo = NULL;
     bStop = 0;
-    bStopDone = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -119,17 +119,11 @@ void VideoDecodeThread::stop()
 {
     bStop = 1;
     isFirstFrame = 1;
+    if (pPlayerInfo)
+        pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
 
-    mutex.lock();
-    while (bStopDone != 1)
-    {
-        if (!WaitCondStopDone.wait(&mutex, 2000))
-        {
-            qDebug()<<"VideoDecodeThread::stop  wait timeout";
-            break;
-        }
-    }
-    mutex.unlock();
+    wait();
+    qDebug()<<"VideoDecodeThread::stop  wait done";
 }
 
 void VideoDecodeThread::run()
@@ -137,8 +131,12 @@ void VideoDecodeThread::run()
     int ret = -1;
     Frame *pFrame = NULL;
     myPacket *pMyPkt = NULL;
-    AVCodecContext *codecCTX = NULL;
+    int bEof = 0;
     qDebug()<<"VideoDecodeThread::run()";
+
+    MessageCmd_t Msgcmd;
+    Msgcmd.cmd = MESSAGE_CMD_NONE;
+    Msgcmd.cmdType = MESSAGE_QUEUE_TYPES;
 
     isFirstFrame = 1;
     bStop = 0;
@@ -151,74 +149,83 @@ void VideoDecodeThread::run()
             continue;
         }
 
+        if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_FORCE_EOF))
+        {
+            qDebug()<<"video decode thread get EOF cmd~";
+            bEof = 1;
+        }
+
         if (pPlayerInfo->videoPacketQueue.Queue->isEmpty())
         {
-            qDebug()<<" video Raw Queue empty !! ==> wait";
-            pPlayerInfo->VDispQueue.mutex.lock();
-            if (!pPlayerInfo->pWaitCondVideoDecodeThread->wait(&(pPlayerInfo->VDispQueue.mutex), 5000))
+            if (bEof == 1)
             {
-                qDebug()<<"pWaitCondVideoDecodeThread wait timeout";
+                bStop = 1;//stop video decode thread
+
+                MessageCmd_t MsgCmd;
+                MsgCmd.cmd = MESSAGE_CMD_FORCE_EOF;
+                MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+                VideoOutput::Get()->queueMessage(MsgCmd);
+
+                continue;
             }
-            qDebug()<<"video wait ==> wakeup";
-            pPlayerInfo->VDispQueue.mutex.unlock();
+            else
+            {
+                qDebug()<<" video Raw Queue empty !!";
+                msleep(1);
+                continue;
+            }
         }
 
         if (!(pFrame = GetOneValidFrame(&pPlayerInfo->videoFrameQueue)))
         {
-            //qDebug()<<" video GetOneValidFrame fail";
-            msleep(10);
+            if (!bStop)
+            {
+                //qDebug()<<" video GetOneValidFrame fail ==> sleep wait";
+                pPlayerInfo->VDispQueue.mutex.lock();
+                pPlayerInfo->pWaitCondVideoDecodeThread->wait(&(pPlayerInfo->VDispQueue.mutex));
+                //qDebug()<<"video GetOneValidFrame fail ==> ==> wakeup";
+                pPlayerInfo->VDispQueue.mutex.unlock();
+            }
             continue;
         }
 
         if ((pMyPkt = GetOnePacket(&(pPlayerInfo->videoPacketQueue))) == NULL)
         {
-            //qDebug()<<" video GetOnePacket fail";
+            qDebug()<<" video GetOnePacket fail";
             continue;
         }
-
-        if (!XFFmpeg::Get()->ic)
-        {
-            msleep(10);
-            continue;
-        }
-        codecCTX = XFFmpeg::Get()->ic->streams[XFFmpeg::Get()->videostreamidx]->codec;
-        //qDebug()<<"video timebase num "<<codecCTX->time_base.num<<"den "<<codecCTX->time_base.den;
 
         ret = XFFmpeg::Get()->Decode(&pMyPkt->AVPkt, pFrame->frame);
         if (ret == 0)
         {
             av_free_packet(&pMyPkt->AVPkt);
+            if (pMyPkt != NULL)
+            {
+                free((void *)pMyPkt);
+                pMyPkt = NULL;
+            }
             qDebug()<<"Video Dec error! pts:"<<pFrame->frame->pts;
             pFrame->DecState = DecWait;
             pFrame->DispState = DispOver;
             continue;
         }
+
         //qDebug()<<"video ==> pts = "<<pFrame->frame->pts;
-        av_free_packet(&pMyPkt->AVPkt);
-
-        //qDebug()<<"V pFrame->serial = "<<pFrame->serial<<"pMyPkt->serial = "<<pMyPkt->serial;
-        if (pPlayerInfo->VDispQueue.Queue->count() < pPlayerInfo->VDispQueue.size && pPlayerInfo->VDispQueue.Queue->count() >= 0)
-        {
-            pPlayerInfo->VDispQueue.mutex.lock();
-            pPlayerInfo->VDispQueue.Queue->append(pFrame);
-            pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
-            pFrame->DecState = DecOver;
-            pFrame->DispState = DispWait;
-            pPlayerInfo->VDispQueue.mutex.unlock();
-        }
-
         //free malloc pkt
+        av_free_packet(&pMyPkt->AVPkt);
         if (pMyPkt != NULL)
         {
             free((void *)pMyPkt);
             pMyPkt = NULL;
         }
-    }
 
-    mutex.lock();
-    bStopDone = 1;
-    WaitCondStopDone.wakeAll();
-    mutex.unlock();
+        pPlayerInfo->VDispQueue.mutex.lock();
+        pFrame->DecState = DecOver;
+        pFrame->DispState = DispWait;
+        pPlayerInfo->VDispQueue.Queue->append(pFrame);
+        pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
+        pPlayerInfo->VDispQueue.mutex.unlock();
+    }
     qDebug()<<"VideoDecodeThread::run() stop!";
 }
 
@@ -270,7 +277,6 @@ void VideoDecodeThread::deinitDecodeFrameQueue(PlayerInfo *pPI)
 
 void VideoDecodeThread::flushDecodeFrameQueue(PlayerInfo *pPI)
 {
-    bStopDone = 0;
     for (int i = 0; i < pPI->videoFrameQueue.size; i++)
     {
         if(pPI->videoFrameQueue.queue[i].frame)
@@ -285,9 +291,10 @@ void VideoDecodeThread::flushDecodeFrameQueue(PlayerInfo *pPI)
 
 VideoDecodeThread::~VideoDecodeThread()
 {
-    qDebug()<<"~VideoDecodeThread()";
+    qDebug()<<"~VideoDecodeThread() IN";
 
-    this->terminate();//stop run thread
+    stop();//stop run thread
+
     for (int i = 0; i < pPlayerInfo->videoFrameQueue.size; i++)
     {
         if(pPlayerInfo->videoFrameQueue.queue[i].frame)

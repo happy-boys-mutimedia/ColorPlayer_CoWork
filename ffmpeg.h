@@ -24,10 +24,11 @@ public:
     ///注释
     bool Open(const char *path);
     void Close();
-    AVPacket Read();
+    AVPacket Read(int *pEof);
     int Decode(const AVPacket *pkt, AVFrame *frame);//返回pts
     void Flush();
     int GetPts(const AVPacket *pkt);//返回码流包的pts
+    int IsOnlyMusic(void);//是否只有音频流
     bool ToRGB(char *out, int outwidth, int outheight);
     int PutFrameToConvert(int StreamID, AVFrame *pFrame);
     int ToPCM(char *out);//转换为pcm格式
@@ -42,8 +43,8 @@ public:
     int pts = 0;//
     int videostreamidx = -1;
     int audioStreamidx = -1;
-    int width;
-    int height;
+    int width = 380;
+    int height = 240;
     int sampleRate = 0;
     int sampleSize = 16;
     int sampleFormate = 1;
@@ -58,6 +59,7 @@ public:
 protected:
     char errorbuf[1024];
     QMutex mutex;
+    QMutex mutex_putConvert;
     AVFrame *yuv = NULL;
     AVFrame *pcm = NULL;
     SwsContext *SwsCtx = NULL;

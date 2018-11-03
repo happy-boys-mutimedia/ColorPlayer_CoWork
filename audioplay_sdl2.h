@@ -38,7 +38,6 @@ private:
     PCMBuffer_t PCMBuffers[FRAME_QUEUE_SIZE];
     message *pMessage;
     int bStop;
-    int bStopDone;
     PCMBuffer_t *GetOneValidPCMBuffer();
     QMutex mutex;
     QWaitCondition WaitCondStopDone;

@@ -42,6 +42,7 @@ ColorPlayer::ColorPlayer()
 {
     player = NULL;
     bOpened = 0;
+    isOnlyMusic = 0;
     pMasterClock = new MasterClock();
 }
 
@@ -72,15 +73,20 @@ int ColorPlayer::open(const char *url)
         mutex.unlock();
         return FAILED;
     }
+    isOnlyMusic = XFFmpeg::Get()->IsOnlyMusic();
 
     DemuxThread::Get()->initPlayerInfo(player);
     DemuxThread::Get()->initRawQueue(player);
-    VideoDecodeThread::Get()->initPlayerInfo(player);
-    VideoDecodeThread::Get()->initDecodeFrameQueue(player);
-    VideoOutput::Get()->initPlayerInfo(player);
-    VideoOutput::Get()->initDisplayQueue(player);
-    VideoOutput::Get()->initMasterClock(pMasterClock);
-    VideoOutput::Get()->setCallback(seekDoneCallBack);
+
+    if (!isOnlyMusic)
+    {
+        VideoDecodeThread::Get()->initPlayerInfo(player);
+        VideoDecodeThread::Get()->initDecodeFrameQueue(player);
+        VideoOutput::Get()->initPlayerInfo(player);
+        VideoOutput::Get()->initDisplayQueue(player);
+        VideoOutput::Get()->initMasterClock(pMasterClock);
+        VideoOutput::Get()->setCallback(seekDoneCallBack);
+    }
     AudioDecodeThread::Get()->initPlayerInfo(player);
     AudioDecodeThread::Get()->initDecodeFrameQueue(player);
     SDL2AudioDisplayThread::Get()->initPlayerInfo(player);
@@ -101,12 +107,14 @@ int ColorPlayer::close()
     qDebug()<<"ColorPlayer start to close";
     stop();
 
-    VideoOutput::Get()->deinitDisplayQueue(player);
-
     SDL2AudioDisplayThread::Get()->deinitDisplayQueue(player);
     SDL2AudioDisplayThread::Get()->deinit();
 
-    VideoDecodeThread::Get()->deinitDecodeFrameQueue(player);
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->deinitDisplayQueue(player);
+        VideoDecodeThread::Get()->deinitDecodeFrameQueue(player);
+    }
 
     AudioDecodeThread::Get()->deinitDecodeFrameQueue(player);
 
@@ -123,11 +131,16 @@ int ColorPlayer::close()
 int ColorPlayer::play()
 {
     qDebug()<< "start thread";
+    DemuxThread::Get()->start();
     SDL2AudioDisplayThread::Get()->start();
     AudioDecodeThread::Get()->start();
-    VideoDecodeThread::Get()->start();
-    VideoOutput::Get()->start();
-    DemuxThread::Get()->start();
+
+    if (!isOnlyMusic)
+    {
+        VideoDecodeThread::Get()->start();
+        VideoOutput::Get()->start();
+    }
+
     if (player)
         player->playerState = PLAYER_STATE_START;
 
@@ -143,7 +156,10 @@ int ColorPlayer::pause()
     MsgCmd.cmd = MESSAGE_CMD_PAUSE;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
-    VideoOutput::Get()->queueMessage(MsgCmd);
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    }
     if (player)
         player->playerState = PLAYER_STATE_PAUSE;
 
@@ -161,7 +177,10 @@ int ColorPlayer::resume()
     MsgCmd.cmd = MESSAGE_CMD_RESUME;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
-    VideoOutput::Get()->queueMessage(MsgCmd);
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    }
     if (player)
         player->playerState = PLAYER_STATE_RESUME;
 
@@ -178,9 +197,11 @@ int ColorPlayer::stop()
     }
 
     SDL2AudioDisplayThread::Get()->stop();
-    VideoOutput::Get()->stop();
-
-    VideoDecodeThread::Get()->stop();
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->stop();
+        VideoDecodeThread::Get()->stop();
+    }
     AudioDecodeThread::Get()->stop();
 
     DemuxThread::Get()->stop();
@@ -225,7 +246,7 @@ int ColorPlayer::need_avsync()
     qDebug()<< "ColorPlayer send need_avsync cmd!!";
     MsgCmd.cmd = MESSAGE_CMD_NEED_AVSYNC;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
-    if (VideoOutput::Get())
+    if (VideoOutput::Get() && !isOnlyMusic)
         VideoOutput::Get()->queueMessage(MsgCmd);
     return SUCCESS;
 }
@@ -237,32 +258,46 @@ int ColorPlayer::cancel_avsync()
     qDebug()<< "ColorPlayer send cancel_avsync cmd!!";
     MsgCmd.cmd = MESSAGE_CMD_CANCEL_AVSYNC;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
-    if (VideoOutput::Get())
+    if (VideoOutput::Get() && !isOnlyMusic)
         VideoOutput::Get()->queueMessage(MsgCmd);
     return SUCCESS;
 }
 
 void ColorPlayer::flush()
 {
-    VideoOutput::Get()->flush();
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->flush();
+        VideoDecodeThread::Get()->flushDecodeFrameQueue(player);
+    }
 
     SDL2AudioDisplayThread::Get()->flush();
-
-    VideoDecodeThread::Get()->flushDecodeFrameQueue(player);
-
     AudioDecodeThread::Get()->flushDecodeFrameQueue(player);
-
     DemuxThread::Get()->deinitRawQueue(player);
-
     XFFmpeg::Get()->Flush();
 
-    pMasterClock->flush();
+    if (pMasterClock)
+        pMasterClock->flush();
 }
 
 int ColorPlayer::seek(float position)
 {
     qDebug()<<"ColorPlayer::seek IN";
+    int time_in = getCurrentTimeInMs();
+
     mutex.lock();
+
+    MessageCmd_t MsgCmd;
+
+    qDebug()<< "ColorPlayer send seek cmd!!";
+    MsgCmd.cmd = MESSAGE_CMD_SEEK;
+    MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+    SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    }
+
     _seekDoneVideo = 0;
     _seekDoneAudio = 0;
     stop();
@@ -272,7 +307,12 @@ int ColorPlayer::seek(float position)
     }
     play();
 
-    while((_seekDoneVideo != 1) || (_seekDoneVideo != 1))
+    if (isOnlyMusic)
+    {
+        _seekDoneVideo = 1;
+    }
+
+    while((_seekDoneVideo != 1) || (_seekDoneAudio != 1))
     {
         //2s timeout
         if (!WaitCondStopDone.wait(&mutex, 2000))
@@ -282,7 +322,7 @@ int ColorPlayer::seek(float position)
         }
     }
 
-    qDebug()<<"color player seek ok!\n";
+    qDebug()<<"color player seek ok! use"<<getCurrentTimeInMs() - time_in<<"ms";
     mutex.unlock();
     return SUCCESS;
 }
@@ -321,22 +361,22 @@ ColorPlayer::~ColorPlayer()
         delete pMasterClock;
     }
 
-    if (player->pWaitCondAudioDecodeThread)
+    if (player && player->pWaitCondAudioDecodeThread)
     {
         delete player->pWaitCondAudioDecodeThread;
     }
 
-    if (player->pWaitCondAudioOutputThread)
+    if (player && player->pWaitCondAudioOutputThread)
     {
         delete player->pWaitCondAudioOutputThread;
     }
 
-    if (player->pWaitCondVideoDecodeThread)
+    if (player && player->pWaitCondVideoDecodeThread)
     {
         delete player->pWaitCondVideoDecodeThread;
     }
 
-    if (player->pWaitCondVideoOutputThread)
+    if (player && player->pWaitCondVideoOutputThread)
     {
         delete player->pWaitCondVideoOutputThread;
     }

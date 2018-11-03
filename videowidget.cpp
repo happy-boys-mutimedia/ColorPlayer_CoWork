@@ -1,4 +1,4 @@
-#include "VideoWidget.h"
+﻿#include "VideoWidget.h"
 #include <QPainter>
 #include <QTime>
 #include "ffmpeg.h"
@@ -28,7 +28,6 @@ static int getTimeInUs()
 VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
 {
     pPlayerInfo = NULL;
-    buf = NULL;
 
     pMessage = new message();
     if (!pMessage)
@@ -36,7 +35,7 @@ VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
         qDebug()<<"VideoWidget() error\n";
     }
 
-    TimerID = startTimer(30);
+    TimerID = startTimer(10);
 }
 
 Frame *pPauseFrame = NULL;
@@ -63,24 +62,13 @@ void VideoWidget::paintEvent(QPaintEvent *e)
 
     if ((w != width() || h != height()) && image != NULL)
     {
-        delete image->bits();
         delete image;
-        if (buf)
-        {
-            qDebug()<<"buf :"<<buf;
-            //free(buf);//????会失败
-            //delete []buf;
-        }
         image = NULL;
-        buf = NULL;
     }
 
-    if (image == NULL && buf == NULL)
+    if (image == NULL)
     {
-        buf = new uchar[width() * height() * 4];
-        //buf = (uchar *)malloc(width() * height() * 4 *4);//分配了没有释放资源
-        //qDebug()<<"malloc buf :"<<buf;
-        image = new QImage(buf, width(), height(), QImage::Format_ARGB32);
+        image = new QImage(width(), height(), QImage::Format_ARGB32);
         w = width();
         h = height();
     }
@@ -98,6 +86,7 @@ void VideoWidget::paintEvent(QPaintEvent *e)
     painter.end();
 
     VideoOutput::Get()->receiveFrametoDisplayQueue(pFrame);
+
 }
 
 void VideoWidget::timerEvent(QTimerEvent *e)
@@ -115,7 +104,6 @@ VideoWidget::~VideoWidget()
 
     if (image)
     {
-        delete image->bits();
         delete image;
         image = NULL;
     }
@@ -123,10 +111,5 @@ VideoWidget::~VideoWidget()
     if (pMessage)
     {
         delete pMessage;
-    }
-
-    if (buf)
-    {
-        //free((void *)buf);//why?todo
     }
 }

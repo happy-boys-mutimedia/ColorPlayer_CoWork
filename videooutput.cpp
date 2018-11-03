@@ -1,4 +1,4 @@
-#include "videooutput.h"
+﻿#include "videooutput.h"
 #include <Qlist>
 #include <QDebug>
 
@@ -20,7 +20,6 @@ VideoOutput::VideoOutput()
     bVideoFreeRun = 0;
     pMasterClock = NULL;
     bStop = 0;
-    bStopDone = 0;
     bFirstFrame = 1;
     _funcCallback = NULL;
 
@@ -33,8 +32,8 @@ VideoOutput::VideoOutput()
 
 VideoOutput::~VideoOutput()
 {
-    qDebug()<<"~VideoOutput()";
-    this->terminate();//stop run thread
+    qDebug()<<"~VideoOutput() IN";
+    stop();//stop run thread
 
     if (pMessage)
     {
@@ -46,6 +45,7 @@ int VideoOutput::NeedAVSync(MessageCmd_t MsgCmd, int bPaused)
 {
     if ((MsgCmd.cmd == MESSAGE_CMD_CANCEL_AVSYNC) || bPaused || bVideoFreeRun)
     {
+        qDebug()<<"Get cmd cancel AVsync";
         return 0;
     }
     else
@@ -74,7 +74,7 @@ int VideoOutput::DecideKeepFrame(int need_av_sync, int64_t pts)
 int VideoOutput::CheckOutWaitOrDisplay(int64_t pts)
 {
     int64_t late = 0;
-    int beyond_tolerance_threshold = 0;
+    int beyond_tolerance_threshold = 5;
 
     late = CalcSyncLate(pts);
     if (late >= 0)
@@ -113,17 +113,12 @@ void VideoOutput::stop()
 {
     bStop = 1;
     bFirstFrame = 1;
+    if (pPlayerInfo)
+        pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
 
-    mutex.lock();
-    while (bStopDone != 1)
-    {
-        if (!WaitCondStopDone.wait(&mutex, 2000))
-        {
-            qDebug()<<"VideoOutput::stop  wait timeout";
-            break;
-        }
-    }
-    mutex.unlock();
+    wait();
+    qDebug()<<"VideoOutput::stop  wait done";
+
 }
 
 void VideoOutput::flush()
@@ -136,7 +131,6 @@ void VideoOutput::flush()
     }
 
     bVideoFreeRun = 0;
-    bStopDone = 0;
     bFirstFrame = 1;
     pPlayerInfo->Video2WidgetQueue.Queue->clear();
     pPlayerInfo->VDispQueue.Queue->clear();
@@ -152,13 +146,13 @@ void VideoOutput::run()
     threadState currentState = THREAD_NONE;
     int need_av_sync = 0;
     int bPaused = 0;
+    int bEof = 0;
+    Frame *pFrame = NULL;
 
     qDebug()<<"VideoOutput::run() IN";
     bStop = 0;
     while (!bStop)
     {
-        static Frame *pFrame = NULL;
-
         if (!pPlayerInfo)
         {
             //qDebug()<<"not init ! ";
@@ -168,24 +162,42 @@ void VideoOutput::run()
 
         if (currentState == THREAD_PAUSE)
         {
-            if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_RESUME))
+            if (pMessage->message_dequeue(&Msgcmd) == SUCCESS)
             {
-                qDebug()<<"VideoOutput get resume cmd~~ ";
-                currentState = THREAD_START;
-                bPaused = 0;
+                if (Msgcmd.cmd == MESSAGE_CMD_RESUME)
+                {
+                    qDebug()<<"VideoOutput get resume cmd~~ ";
+                    currentState = THREAD_START;
+                    bPaused = 0;
+                    continue;
+                }
+                else if (Msgcmd.cmd == MESSAGE_CMD_SEEK)
+                {
+                    qDebug()<<"VideoOutput get seek cmd~~ ";
+                    currentState = THREAD_SEEK;
+                    bPaused = 0;
+                    continue;
+                }
             }
             //qDebug()<<"VideoOutput THREAD_PAUSE~~ ";
-            msleep(10);
+            msleep(100);
             continue;
         }
 
-        if ((pMessage->message_dequeue(&Msgcmd) == SUCCESS) && (Msgcmd.cmd == MESSAGE_CMD_PAUSE))
+        if (pMessage->message_dequeue(&Msgcmd) == SUCCESS)
         {
-            qDebug()<<"VideoOutput get pause cmd~~ ";
-            currentState = THREAD_PAUSE;
-            bPaused = 1;
-            msleep(10);
-            continue;
+            if (Msgcmd.cmd == MESSAGE_CMD_PAUSE)
+            {
+                qDebug()<<"VideoOutput get pause cmd~~ ";
+                currentState = THREAD_PAUSE;
+                bPaused = 1;
+                continue;
+            }
+            else if (Msgcmd.cmd == MESSAGE_CMD_FORCE_EOF)
+            {
+                qDebug()<<"videoOutput get EOF cmd~";
+                bEof = 1;
+            }
         }
 
         // read queued video frame
@@ -194,16 +206,27 @@ void VideoOutput::run()
             pPlayerInfo->VDispQueue.mutex.lock();
             if (pPlayerInfo->VDispQueue.Queue->isEmpty())
             {
-                qDebug()<<"VDispQueue empty ==> wait";
-                if (!pPlayerInfo->pWaitCondVideoOutputThread->wait(&(pPlayerInfo->VDispQueue.mutex), 5000))
+                if (bEof)
                 {
-                    qDebug()<<"pWaitCondVideoOutputThread wait timeout";
+                    bStop = 1;
+                    pPlayerInfo->VDispQueue.mutex.unlock();
+                    continue;
                 }
-                qDebug()<<" pWaitCondVideoOutputThread Queue ==> wait ==>wakeup";
+                else if (!bStop)
+                {
+                    qDebug()<<"VDispQueue empty ==> wait";
+                    pPlayerInfo->pWaitCondVideoOutputThread->wait(&(pPlayerInfo->VDispQueue.mutex));
+                    qDebug()<<" pWaitCondVideoOutputThread Queue ==> wait ==>wakeup";
+                    pPlayerInfo->VDispQueue.mutex.unlock();
+                    continue;
+                }
             }
-
-            pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();
+            else
+            {
+                pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();
+            }
             pPlayerInfo->VDispQueue.mutex.unlock();
+
             if (pFrame == NULL || pFrame->frame == NULL)
             {
                 qDebug()<<"pFrame == NULL";
@@ -251,10 +274,9 @@ void VideoOutput::run()
         if (sync_status == SYNC_GO_DISP)
         {
             pPlayerInfo->Video2WidgetQueue.mutex.lock();
-            if (pPlayerInfo->Video2WidgetQueue.Queue->count() < pPlayerInfo->Video2WidgetQueue.size)
-            {
-                pPlayerInfo->Video2WidgetQueue.Queue->append(pFrame);
-            }
+            //qDebug()<<"count:"<<pPlayerInfo->Video2WidgetQueue.Queue->count();
+            pPlayerInfo->Video2WidgetQueue.Queue->append(pFrame);
+            pFrame = NULL;
             pPlayerInfo->Video2WidgetQueue.mutex.unlock();
 
             sync_status = SYNC_GO_NEXT;
@@ -266,13 +288,10 @@ void VideoOutput::run()
             pFrame->DecState = DecWait;
             pFrame->DispState = DispOver;
             sync_status = SYNC_GO_NEXT;
+            pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
+            //qDebug()<<"pWaitCondVideoDecodeThread->wakeAll()";
         }
     }
-
-    mutex.lock();
-    bStopDone = 1;
-    WaitCondStopDone.wakeAll();
-    mutex.unlock();
     qDebug()<<"VideoOutput::run() stop!";
 }
 
@@ -328,6 +347,7 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
 
     if (pPI->Video2WidgetQueue.Queue == NULL || pPI->Video2WidgetQueue.Queue->isEmpty())
     {
+        //qDebug()<<"Video2WidgetQueue empty!";
         return NULL;
     }
 
@@ -366,6 +386,7 @@ void VideoOutput::receiveFrametoDisplayQueue(Frame *pFrame)
     }
     pFrame->DecState = DecWait;
     pFrame->DispState = DispOver;
+    pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
 }
 
 void VideoOutput::setCallback(pFuncCallback callback)

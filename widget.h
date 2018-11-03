@@ -10,6 +10,7 @@
 #include <QMenuBar>
 #include <QStatusBar>
 #include <QKeyEvent>
+#include <QListWidgetItem>
 
 namespace Ui {
 class Widget;
@@ -26,6 +27,7 @@ public:
     void resizeEvent(QResizeEvent *e);
     void timerEvent(QTimerEvent *e);
     void keyPressEvent(QKeyEvent *event);
+    void closeEvent(QCloseEvent *event);
 
     //增加界面菜单栏
     QMenu* menu[10];
@@ -46,11 +48,18 @@ public slots:
 
     void trigerMenu(QAction* act);
 
+    void list_doubleclicked(QListWidgetItem* item);
+
 private:
     Ui::Widget *ui;
     int bOpened;
     int bNeedAvsync;
-
+    QListWidget *listWidget;
+    int deskWidth;
+    int deskHeight;
+    int videoWidth;
+    int videoHeight;
+    QString url;
 };
 
 #endif // WIDGET_H
