@@ -1,4 +1,4 @@
-#include "messagequeue.h"
+﻿#include "messagequeue.h"
 #include "common.h"
 #include <QList>
 #include <QDebug>
@@ -56,3 +56,11 @@ int message::message_is_empty()
 {
     return Queue->isEmpty();
 }
+
+void message::message_clear()
+{
+    mutex.lock();
+    Queue->clear();
+    mutex.unlock();
+}
+

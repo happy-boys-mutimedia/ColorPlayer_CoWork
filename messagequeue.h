@@ -1,4 +1,4 @@
-#ifndef MESSAGEQUEUE_H
+﻿#ifndef MESSAGEQUEUE_H
 #define MESSAGEQUEUE_H
 
 #include <QMutex>
@@ -49,6 +49,7 @@ public:
     int message_dequeue(MessageCmd_t *cmd);
     int message_cmd_size();
     int message_is_empty();
+    void message_clear();
 private:
     QMutex mutex;
     QList<MessageCmd_t> *Queue;

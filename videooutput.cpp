@@ -292,6 +292,7 @@ void VideoOutput::run()
             //qDebug()<<"pWaitCondVideoDecodeThread->wakeAll()";
         }
     }
+    pMessage->message_clear();
     qDebug()<<"VideoOutput::run() stop!";
 }
 

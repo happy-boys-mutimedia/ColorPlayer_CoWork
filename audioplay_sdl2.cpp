@@ -1,4 +1,4 @@
-#include "audioplay_sdl2.h"
+﻿#include "audioplay_sdl2.h"
 #include "ffmpeg.h"
 #include <QDebug>
 #include <QList>
@@ -318,6 +318,7 @@ void SDL2AudioDisplayThread::run()
         player->ADispPCMQueue.Queue->append(pPCMBuffer);
         player->ADispPCMQueue.mutex.unlock();
     }
+    pMessage->message_clear();
     qDebug()<<"SDL2AudioDisplayThread::run() stop!";
 }
 

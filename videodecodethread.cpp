@@ -1,4 +1,4 @@
-#include "videodecodethread.h"
+﻿#include "videodecodethread.h"
 #include "videooutput.h"
 #include "ffmpeg.h"
 #include <QDebug>
@@ -226,6 +226,7 @@ void VideoDecodeThread::run()
         pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
         pPlayerInfo->VDispQueue.mutex.unlock();
     }
+    pMessage->message_clear();
     qDebug()<<"VideoDecodeThread::run() stop!";
 }
 

@@ -1,4 +1,4 @@
-#include "audiodecodethread.h"
+﻿#include "audiodecodethread.h"
 #include "audioplay_sdl2.h"
 #include "ffmpeg.h"
 #include "QDebug"
@@ -230,6 +230,7 @@ void AudioDecodeThread::run()
         pPlayerInfo->pWaitCondAudioOutputThread->wakeAll();
         pPlayerInfo->ADispQueue.mutex.unlock();
     }
+    pMessage->message_clear();
     qDebug()<<"AudioDecodeThread stop!";
 
 }
