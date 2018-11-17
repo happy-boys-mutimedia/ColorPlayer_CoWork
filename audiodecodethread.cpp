@@ -175,7 +175,7 @@ void AudioDecodeThread::run()
             }
             else
             {
-                qDebug()<<" audio Raw Queue empty !!";
+                //qDebug()<<" audio Raw Queue empty !!";
                 msleep(1);
                 continue;
             }
@@ -220,6 +220,7 @@ void AudioDecodeThread::run()
             free((void *)pMyPkt);
             pMyPkt = NULL;
         }
+
         //qDebug()<<"Aduio ==> pts = "<<pFrame->frame->pts;
 
         pPlayerInfo->ADispQueue.mutex.lock();
@@ -301,15 +302,18 @@ AudioDecodeThread::~AudioDecodeThread()
     qDebug()<<"~AudioDisplayThread IN";
     stop();//stop run thread
 
-    for (int i = 0; i < pPlayerInfo->audioFrameQueue.size; i++)
+    if (pPlayerInfo)
     {
-        if(pPlayerInfo->audioFrameQueue.queue[i].frame)
+        for (int i = 0; i < pPlayerInfo->audioFrameQueue.size; i++)
         {
-            av_frame_unref(pPlayerInfo->audioFrameQueue.queue[i].frame);
-            av_frame_free(&(pPlayerInfo->audioFrameQueue.queue[i].frame));
-            pPlayerInfo->audioFrameQueue.queue[i].frame = NULL;
-            pPlayerInfo->audioFrameQueue.queue[i].DecState = DecButt;
-            pPlayerInfo->audioFrameQueue.queue[i].DispState = DispButt;
+            if(pPlayerInfo->audioFrameQueue.queue[i].frame)
+            {
+                av_frame_unref(pPlayerInfo->audioFrameQueue.queue[i].frame);
+                av_frame_free(&(pPlayerInfo->audioFrameQueue.queue[i].frame));
+                pPlayerInfo->audioFrameQueue.queue[i].frame = NULL;
+                pPlayerInfo->audioFrameQueue.queue[i].DecState = DecButt;
+                pPlayerInfo->audioFrameQueue.queue[i].DispState = DispButt;
+            }
         }
     }
 

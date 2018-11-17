@@ -1,4 +1,4 @@
-#ifndef COLORPLAYER_H
+﻿#ifndef COLORPLAYER_H
 #define COLORPLAYER_H
 #include "ffmpeg.h"
 #include "common.h"
@@ -137,6 +137,7 @@ typedef struct PlayerInfo {
     FrameQueue videoFrameQueue;
     FrameQueue audioFrameQueue;
     PlayerState playerState;
+    int isOnlyMusic;
     QWaitCondition *pWaitCondAudioDecodeThread;
     QWaitCondition *pWaitCondAudioOutputThread;
     QWaitCondition *pWaitCondVideoDecodeThread;
@@ -170,6 +171,7 @@ public:
     int seek(float position);
     int set_speed();
     int get_speed();
+    int multiplePlay(float value);
     PlayerInfo *get_player_Instanse();
     virtual ~ColorPlayer();
 private:
@@ -180,6 +182,7 @@ private:
     MasterClock *pMasterClock;
     int bOpened;
     int isOnlyMusic;
+    int isOnlyVideo;
 };
 
 

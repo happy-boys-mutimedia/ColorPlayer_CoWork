@@ -1,8 +1,9 @@
-#ifndef VIDEOWIDGET_H
+﻿#ifndef VIDEOWIDGET_H
 #define VIDEOWIDGET_H
 
 #include <QtWidgets/qwidget.h>
 #include <QOpenGLWidget>
+#include <QPainter>
 #include "colorplayer.h"
 #include "messagequeue.h"
 
@@ -13,11 +14,16 @@ public:
     void paintEvent(QPaintEvent *e);
     void timerEvent(QTimerEvent *e);
 
+    message *pMessage;
     virtual ~VideoWidget();
 private:
     PlayerInfo *pPlayerInfo;
-    message *pMessage;
     uchar *buf;
+    QImage *image = NULL;
+    QImage *pauseImage = NULL;
+    int TimerID = -1;
+    QPainter painter;
+    int bWindowMini;
 };
 
 #endif // VIDEOWIDGET_H

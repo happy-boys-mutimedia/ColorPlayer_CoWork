@@ -170,7 +170,7 @@ void VideoDecodeThread::run()
             }
             else
             {
-                qDebug()<<" video Raw Queue empty !!";
+                //qDebug()<<" video Raw Queue empty !!";
                 msleep(1);
                 continue;
             }
@@ -211,6 +211,7 @@ void VideoDecodeThread::run()
         }
 
         //qDebug()<<"video ==> pts = "<<pFrame->frame->pts;
+
         //free malloc pkt
         av_free_packet(&pMyPkt->AVPkt);
         if (pMyPkt != NULL)
@@ -296,15 +297,18 @@ VideoDecodeThread::~VideoDecodeThread()
 
     stop();//stop run thread
 
-    for (int i = 0; i < pPlayerInfo->videoFrameQueue.size; i++)
+    if (pPlayerInfo)
     {
-        if(pPlayerInfo->videoFrameQueue.queue[i].frame)
+        for (int i = 0; i < pPlayerInfo->videoFrameQueue.size; i++)
         {
-            av_frame_unref(pPlayerInfo->videoFrameQueue.queue[i].frame);
-            av_frame_free(&(pPlayerInfo->videoFrameQueue.queue[i].frame));
-            pPlayerInfo->videoFrameQueue.queue[i].frame = NULL;
-            pPlayerInfo->videoFrameQueue.queue[i].DecState = DecButt;
-            pPlayerInfo->videoFrameQueue.queue[i].DispState = DispButt;
+            if(pPlayerInfo->videoFrameQueue.queue[i].frame)
+            {
+                av_frame_unref(pPlayerInfo->videoFrameQueue.queue[i].frame);
+                av_frame_free(&(pPlayerInfo->videoFrameQueue.queue[i].frame));
+                pPlayerInfo->videoFrameQueue.queue[i].frame = NULL;
+                pPlayerInfo->videoFrameQueue.queue[i].DecState = DecButt;
+                pPlayerInfo->videoFrameQueue.queue[i].DispState = DispButt;
+            }
         }
     }
 

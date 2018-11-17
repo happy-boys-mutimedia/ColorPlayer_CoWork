@@ -1,4 +1,4 @@
-#ifndef VIDEOOUTPUT_H
+﻿#ifndef VIDEOOUTPUT_H
 #define VIDEOOUTPUT_H
 #include "colorplayer.h"
 #include "messagequeue.h"
@@ -37,7 +37,7 @@ private:
     PlayerInfo *pPlayerInfo;
     message *pMessage;
     MasterClock *pMasterClock;
-    Frame *pPauseFrame;
+    Frame *pLastFrame;
     int bStop;
     int bFirstFrame;
     QMutex mutex;

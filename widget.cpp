@@ -11,6 +11,7 @@
 #include <QInputDialog>
 #include <QDir>
 #include <QListWidget>
+#include <QMimeData>
 
 
 static bool isPressedSlider = false;
@@ -35,33 +36,46 @@ Widget::Widget(QWidget *parent) :
     act[0] = new QAction("open",this);
     act[0]->setShortcut(QKeySequence::Open);
     act[0]->setStatusTip(tr("open media file"));
-    act[1] = new QAction("close",this);
-    act[1]->setShortcut(QKeySequence::Quit);
-    act[1]->setStatusTip(tr("exit"));
+    act[1] = new QAction("open network stream",this);
+    act[2] = new QAction("close",this);
+    act[2]->setShortcut(QKeySequence::Quit);
+    act[2]->setStatusTip(tr("exit"));
     menu[0]->addAction(act[0]);
     menu[0]->addAction(act[1]);
+    menu[0]->addAction(act[2]);
 
-    menu[1] = new QMenu("action");
+    menu[1] = new QMenu("Action");
     menu[1]->addAction("pause/play");
     menu[1]->addAction("previous media file");
     menu[1]->addAction("next media file");
-    menu[1]->addAction("open network stream");
     menu[1]->addAction("avsync/no avsync");
 
-    menu[2] = new QMenu("playlist");
+    menu[2] = new QMenu("PlayList");
     menu[2]->addAction("list");
 
-    menu[3] = new QMenu("help");
-    menu[3]->addAction("aboutme");
+    menu[3] = new QMenu("MultiPlay");
+    menu[3]->addAction("1.0");
+    menu[3]->addAction("1.25");
+    menu[3]->addAction("1.5");
+    menu[3]->addAction("1.75");
+    menu[3]->addAction("2.0");
+
+    menu[4] = new QMenu("Help");
+    menu[4]->addAction("aboutMe");
 
     menuBar = new QMenuBar(this);
     menuBar->addMenu(menu[0]);
     menuBar->addMenu(menu[1]);
     menuBar->addMenu(menu[2]);
     menuBar->addMenu(menu[3]);
+    menuBar->addMenu(menu[4]);
     menuBar->setGeometry(0,0,this->width(),30);
 
     connect(menuBar,SIGNAL(triggered(QAction*)),this,SLOT(trigerMenu(QAction*)));
+
+    //allow drop envent
+    ui->openGLWidget->setAcceptDrops(false);
+    setAcceptDrops(true);
 
     //无边框
     //setWindowFlags(Qt::FramelessWindowHint);
@@ -69,6 +83,7 @@ Widget::Widget(QWidget *parent) :
     bOpened = 0;
     bNeedAvsync = 1;
     listWidget = NULL;
+    bNetworkStream = 0;
 }
 
 Widget::~Widget()
@@ -76,9 +91,13 @@ Widget::~Widget()
     qDebug()<<"Widget::~Widget()";
     delete menu[0];
     delete menu[1];
+    delete menu[2];
+    delete menu[3];
+    delete menu[4];
     delete act[0];
     delete act[1];
     delete menuBar;
+    delete status;
     delete ui;
 
     if (listWidget)
@@ -98,8 +117,9 @@ Widget::~Widget()
 
 void Widget::on_OpenButton_clicked()
 {
-    url = QFileDialog::getOpenFileName(this, QString::fromLocal8Bit("please choose file"));
+    url = QFileDialog::getOpenFileName(this,QString::fromLocal8Bit("please choose file"));
     openFile(url);
+    bNetworkStream = 0;
 
     QFileInfo urlFileInfo(url);
     QDir dir = urlFileInfo.absoluteDir();
@@ -184,7 +204,8 @@ void Widget::on_PlaySlider_sliderReleased()
     isPressedSlider = false;
     float pos = 0;
     pos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
-    ColorPlayer::Get()->seek(pos);
+    if (!bNetworkStream)
+        ColorPlayer::Get()->seek(pos);
     isPlay = !isPlay;
 }
 
@@ -260,6 +281,9 @@ void Widget::closeEvent(QCloseEvent *event)
     qDebug()<<"Widget::closeEvent IN";
     if (listWidget)
         listWidget->hide();
+
+    //close player
+    ColorPlayer::Get()->close();
 }
 
 void Widget::openFile(QString name)
@@ -319,7 +343,7 @@ void Widget::openFile(QString name)
     videoHeight = ColorPlayer::Get()->get_video_height();
     if (videoWidth <= deskWidth && videoHeight <= deskHeight)
     {
-        this->move((deskWidth - videoWidth)/2, 0);
+        this->move(0 , 0);//(deskWidth - videoWidth)/2
         this->resize(videoWidth, videoHeight);
     }
     else
@@ -338,119 +362,205 @@ void Widget::trigerMenu(QAction* act)
     {
         qDebug()<<"press down";
         on_OpenButton_clicked();
+        return;
     }
 
     if(act->text() == "pause/play")
     {
         on_PlayButton_clicked();
+        return;
     }
 
     if(act->text() == "previous media file")
     {
         int currenRow = 0;
-        qDebug()<<"open ==> count -----> "<<listWidget->count();
-        for (int i = 0; i < listWidget->count(); i++)
-        {
-            QListWidgetItem * item = listWidget->item(i);
-            QString name = item->text();
 
-            if (!name.compare(url))
+        if (listWidget)
+        {
+            for (int i = 0; i < listWidget->count(); i++)
             {
-                currenRow = i;
-                if (i + 1 == listWidget->count())
+                QListWidgetItem * item = listWidget->item(i);
+                QString name = item->text();
+
+                if (!name.compare(url))
                 {
-                    i = 0;
+                    currenRow = i;
+                    if (i + 1 == listWidget->count())
+                    {
+                        i = 0;
+                    }
+                    else
+                    {
+                        i = i + 1;
+                    }
+                    item = listWidget->item(i);
+                    if (item)
+                    {
+                        name = item->text();
+                    }
+                    else
+                    {
+                        return;
+                    }
+                    url = name;
+                    openFile(name);
+                    bNetworkStream = 0;
+                    qDebug()<<"open ==> name -----> "<<item->text();
                 }
-                else
-                {
-                    i = i + 1;
-                }
-                item = listWidget->item(i);
-                if (item)
-                {
-                    name = item->text();
-                }
-                else
-                {
-                    return;
-                }
-                url = name;
-                openFile(name);
-                qDebug()<<"open ==> name -----> "<<item->text();
             }
         }
+        return;
     }
 
     if(act->text() == "next media file")
     {
         int currenRow = 0;
-
-        for (int i = 0; i < listWidget->count(); i++)
+        if (listWidget)
         {
-            QListWidgetItem * item = listWidget->item(i);
-            QString name = item->text();
-
-            if (!name.compare(url))
+            for (int i = 0; i < listWidget->count(); i++)
             {
-                currenRow = i;
-                if (i - 1 == -1)
+                QListWidgetItem * item = listWidget->item(i);
+                QString name = item->text();
+
+                if (!name.compare(url))
                 {
-                    i = listWidget->count() - 1;
+                    currenRow = i;
+                    if (i - 1 == -1)
+                    {
+                        i = listWidget->count() - 1;
+                    }
+                    else
+                    {
+                        i = i - 1;
+                    }
+                    item = listWidget->item(i);
+                    if (item)
+                    {
+                        name = item->text();
+                    }
+                    else
+                    {
+                        return;
+                    }
+                    url = name;
+                    openFile(name);
+                    bNetworkStream = 0;
+                    qDebug()<<"open ==> name -----> "<<item->text();
                 }
-                else
-                {
-                    i = i - 1;
-                }
-                item = listWidget->item(i);
-                if (item)
-                {
-                    name = item->text();
-                }
-                else
-                {
-                    return;
-                }
-                url = name;
-                openFile(name);
-                qDebug()<<"open ==> name -----> "<<item->text();
             }
         }
+        return;
     }
 
     if(act->text() == "close")
     {
         ColorPlayer::Get()->close();
+        bNetworkStream = 0;
+        return;
     }
 
     if(act->text() == "open network stream")
     {
         QString text = QInputDialog::getText(this, "network URL", "Please inter URL");
         openFile(text);
+        bNetworkStream = 1;
+        return;
     }
 
     if(act->text() == "avsync/no avsync")
     {
         on_Avsync_clicked();
+        return;
     }
 
-    if(act->text() == "aboutme")
+    if(act->text() == "aboutMe")
     {
         QMessageBox::about(this, "about me", "Created by QiujieLu \nmail:1511248339@qq.com \ngithub:https://github.com/happy-boys-mutimedia/ColorPlayer_CoWork");
+        return;
     }
 
     if(act->text() == "list")
     {
+        int pos_x = 0;
         if (listWidget)
         {
-            listWidget->resize(300, videoHeight);
-            listWidget->move((deskWidth + videoWidth)/2,0);
+            listWidget->resize(300, 600);
+            if ((deskWidth + videoWidth)/2 >= deskWidth)
+            {
+                pos_x = deskWidth/2;
+            }
+            else
+            {
+                pos_x = (deskWidth + videoWidth)/2;
+            }
+            listWidget->move(pos_x,0);
             listWidget->show();
         }
         else
         {
             QMessageBox::information(this, "err", "list is empty!");
         }
+        return;
     }
+
+    if(act->text() == "1.0" || act->text() == "1.25" || act->text() == "1.5" ||
+            act->text() == "1.75" || act->text() == "2.0")
+    {
+        float multiple = 0;
+
+        bool ok = 0;
+        multiple = act->text().toFloat(&ok);
+        if (ok)
+        {
+            qDebug()<<"multiple = "<<multiple;
+            ColorPlayer::Get()->multiplePlay(multiple);
+        }
+        return;
+    }
+}
+
+void Widget::changeEvent(QEvent *e)
+{
+    qDebug()<<"Widget::changeEvent IN";
+    if(e->type() == QEvent::WindowStateChange)
+    {
+        if(windowState() & Qt::WindowMinimized)
+        {
+            MessageCmd_t MsgCmd;
+            qDebug()<< "widget send windowMinmized cmd!!";
+            MsgCmd.cmd = MESSAGE_CMD_WINDOW_MINMiZED;
+            MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+            ui->openGLWidget->pMessage->message_queue(MsgCmd);
+        }
+        else
+        {
+            MessageCmd_t MsgCmd;
+            qDebug()<< "widget send windowMinmized cmd!!";
+            MsgCmd.cmd = MESSAGE_CMD_WINDOW_RESUME;
+            MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+            ui->openGLWidget->pMessage->message_queue(MsgCmd);
+        }
+    }
+}
+
+void Widget::dragEnterEvent(QDragEnterEvent *event)
+{
+    qDebug()<< "Widget::dragEnterEvent IN!";
+    if (event->mimeData()->hasFormat("text/uri-list"))
+        event->acceptProposedAction();
+}
+
+void Widget::dropEvent(QDropEvent *event)
+{
+    qDebug()<< "Widget::dropEvent IN!";
+    QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.isEmpty())
+       return;
+    QString fileName = urls.first().toLocalFile();
+    if (fileName.isEmpty())
+        return;
+    qDebug()<< "fileName = "<<fileName;
+    openFile(fileName);
 }
 
 void Widget::list_doubleclicked(QListWidgetItem* item)
@@ -460,6 +570,7 @@ void Widget::list_doubleclicked(QListWidgetItem* item)
     QString name = item->text();
     url = name;
     openFile(name);
+    bNetworkStream = 0;
 
     listWidget->hide();
 }

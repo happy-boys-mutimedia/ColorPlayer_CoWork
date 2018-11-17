@@ -1,4 +1,4 @@
-#ifndef AUDIOPLAY_SDL2_H
+﻿#ifndef AUDIOPLAY_SDL2_H
 #define AUDIOPLAY_SDL2_H
 #include <QThread>
 #include "colorplayer.h"
@@ -29,6 +29,7 @@ public:
     void initMasterClock(MasterClock * pMC);
     void queueMessage(MessageCmd_t MsgCmd);
     void setCallback(pFuncCallback callback);
+    void setMultiplePlay(float value);
     virtual ~SDL2AudioDisplayThread();
     PlayerInfo *player;
     MasterClock * pMasterClock;
@@ -38,6 +39,9 @@ private:
     PCMBuffer_t PCMBuffers[FRAME_QUEUE_SIZE];
     message *pMessage;
     int bStop;
+    int bInit;
+    int bFirstCallback;
+    float MultiplePlay = 1.0;
     PCMBuffer_t *GetOneValidPCMBuffer();
     QMutex mutex;
     QWaitCondition WaitCondStopDone;

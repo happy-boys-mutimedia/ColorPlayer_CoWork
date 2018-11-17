@@ -43,7 +43,7 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
     }
     else
     {
-        //qDebug()<<"ADispPCMQueue empty";
+        //qDebug()<<"_SDL2_fill_audio_callback ==>ADispPCMQueue empty";
         pADT->player->ADispPCMQueue.mutex.unlock();
         return;
     }
@@ -55,7 +55,10 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
         pADT->pMasterClock->set_clock_base(pPCMBuffer->pts);
         pADT->bFirstFrame = 0;
         if (pADT->_funcCallback)
+        {
+            qDebug()<<"pADT->_funcCallback";
             pADT->_funcCallback(mediaItem_audio);
+        }
     }
     else
     {
@@ -172,10 +175,15 @@ void SDL2AudioDisplayThread::setCallback(pFuncCallback callback)
         _funcCallback = callback;
 }
 
+void SDL2AudioDisplayThread::setMultiplePlay(float value)
+{
+    MultiplePlay = value;
+    qDebug()<<"SDL2AudioDisplayThread::setMultiplePlay ==> "<<MultiplePlay;
+}
+
 void SDL2AudioDisplayThread::stop()
 {
     bStop = 1;
-    bFirstFrame = 1;
     if (player)
         player->pWaitCondAudioOutputThread->wakeAll();
 
@@ -186,6 +194,8 @@ void SDL2AudioDisplayThread::stop()
 void SDL2AudioDisplayThread::flush()
 {
     bFirstFrame = 1;
+    bFirstCallback = 1;
+    SDL_PauseAudio(1);
     player->ADispQueue.Queue->clear();
     player->ADispPCMQueue.Queue->clear();
 
@@ -234,6 +244,13 @@ void SDL2AudioDisplayThread::run()
                 {
                     qDebug()<<"SDL2AudioDisplayThread get seek cmd~";
                     currentState = THREAD_SEEK;
+                    SDL_PauseAudio(0);
+                    continue;
+                }
+                else if (Msgcmd.cmd == MESSAGE_CMD_MULTIPLE_PLAY)
+                {
+                    qDebug()<<"SDL2AudioDisplayThread get multiple play cmd~";
+                    currentState = THREAD_START;
                     SDL_PauseAudio(0);
                     continue;
                 }
@@ -326,8 +343,11 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
 {
     player = NULL;
     bFirstFrame = 1;
+    bFirstCallback = 1;
     bStop = 0;
+    bInit = 0;
     _funcCallback = NULL;
+    MultiplePlay = 1.0;
 
     pMessage = new message();
     if (!pMessage)
@@ -343,6 +363,12 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
 void SDL2AudioDisplayThread::init()
 {
     SDL_AudioSpec wanted_spec;
+
+    if (bInit)
+    {
+        qDebug()<<"SDL2AudioDisplayThread::init() already init error";
+        return;
+    }
     //Init
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER))
     {
@@ -351,11 +377,11 @@ void SDL2AudioDisplayThread::init()
     }
 
     //SDL_AudioSpec
-    wanted_spec.freq = XFFmpeg::Get()->sampleRate;//todo
+    wanted_spec.freq = XFFmpeg::Get()->sampleRate * MultiplePlay;
     wanted_spec.format = AUDIO_S16SYS;
     wanted_spec.channels = XFFmpeg::Get()->channel;
     wanted_spec.silence = 0;
-    wanted_spec.samples = (XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1536);//ac-3 Dolby digital:1536
+    wanted_spec.samples = XFFmpeg::Get()->frame_size ? XFFmpeg::Get()->frame_size : 1024;
     wanted_spec.callback = _SDL2_fill_audio_callback;
     wanted_spec.userdata = (void *)this;
     qDebug()<<"freq "<<wanted_spec.freq<<"format "<<wanted_spec.format<<"channels "<<wanted_spec.channels;
@@ -369,6 +395,7 @@ void SDL2AudioDisplayThread::init()
     //Play
     SDL_PauseAudio(0);
 
+    bInit = 1;
     qDebug()<<"sdl2_init init done !!!!!!!!";
 
     return;
@@ -376,8 +403,11 @@ void SDL2AudioDisplayThread::init()
 
 void SDL2AudioDisplayThread::deinit()
 {
+    SDL_PauseAudio(1);
     SDL_CloseAudio();//Close SDL
     SDL_Quit();
+    bInit = 0;
+    qDebug()<<"sdl2_deinit  done !!!!!!!!";
 }
 
 SDL2AudioDisplayThread::~SDL2AudioDisplayThread()

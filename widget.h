@@ -1,4 +1,4 @@
-#ifndef WIDGET_H
+﻿#ifndef WIDGET_H
 #define WIDGET_H
 
 #include <QWidget>
@@ -28,6 +28,9 @@ public:
     void timerEvent(QTimerEvent *e);
     void keyPressEvent(QKeyEvent *event);
     void closeEvent(QCloseEvent *event);
+    void changeEvent(QEvent *e);
+    void dragEnterEvent(QDragEnterEvent *event);
+    void dropEvent(QDropEvent *event);
 
     //增加界面菜单栏
     QMenu* menu[10];
@@ -53,6 +56,7 @@ public slots:
 private:
     Ui::Widget *ui;
     int bOpened;
+    int bNetworkStream;
     int bNeedAvsync;
     QListWidget *listWidget;
     int deskWidth;

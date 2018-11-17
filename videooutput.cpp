@@ -19,6 +19,7 @@ VideoOutput::VideoOutput()
     pPlayerInfo = NULL;
     bVideoFreeRun = 0;
     pMasterClock = NULL;
+    pLastFrame = NULL;
     bStop = 0;
     bFirstFrame = 1;
     _funcCallback = NULL;
@@ -123,11 +124,11 @@ void VideoOutput::stop()
 
 void VideoOutput::flush()
 {
-    if (pPauseFrame)
+    if (pLastFrame)
     {
-        pPauseFrame->DecState = DecWait;
-        pPauseFrame->DispState = DispOver;
-        pPauseFrame = NULL;
+        pLastFrame->DecState = DecWait;
+        pLastFrame->DispState = DispOver;
+        pLastFrame = NULL;
     }
 
     bVideoFreeRun = 0;
@@ -175,6 +176,13 @@ void VideoOutput::run()
                 {
                     qDebug()<<"VideoOutput get seek cmd~~ ";
                     currentState = THREAD_SEEK;
+                    bPaused = 0;
+                    continue;
+                }
+                else if (Msgcmd.cmd == MESSAGE_CMD_MULTIPLE_PLAY)
+                {
+                    qDebug()<<"VideoOutput get multiple play cmd~~ ";
+                    currentState = THREAD_START;
                     bPaused = 0;
                     continue;
                 }
@@ -303,7 +311,7 @@ void VideoOutput::initPlayerInfo(PlayerInfo *pPI)
         pPlayerInfo = pPI;
     }
 
-    pPauseFrame = NULL;
+    pLastFrame = NULL;
 }
 
 void VideoOutput::initDisplayQueue(PlayerInfo *pPI)
@@ -340,15 +348,8 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
 {
     Frame *pFrame = NULL;
 
-    //for pause state to rescale window,give pause frame to display
-    if ((pPI->playerState == PLAYER_STATE_PAUSE) && (pPauseFrame != NULL))
+    if (pPI->Video2WidgetQueue.Queue == NULL)
     {
-        return pPauseFrame;
-    }
-
-    if (pPI->Video2WidgetQueue.Queue == NULL || pPI->Video2WidgetQueue.Queue->isEmpty())
-    {
-        //qDebug()<<"Video2WidgetQueue empty!";
         return NULL;
     }
 
@@ -357,37 +358,34 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
     {
         pFrame = pPI->Video2WidgetQueue.Queue->takeFirst();
     }
+    else
+    {
+        pPI->Video2WidgetQueue.mutex.unlock();
+        //qDebug()<<"Video2WidgetQueue.Queue isEmpty() return lastFrame";
+        return pLastFrame;
+    }
     pPI->Video2WidgetQueue.mutex.unlock();
-
-    //for pause state to rescale window,give pause frame to display
-    if (pPI->playerState == PLAYER_STATE_PAUSE)
-    {
-        pPauseFrame = pFrame;
-    }
-    else if (pPauseFrame != NULL)
-    {
-        pPauseFrame = NULL;
-    }
 
     return pFrame;
 }
 
 void VideoOutput::receiveFrametoDisplayQueue(Frame *pFrame)
 {
-    //do not change frame state for decoder can't use it.
-    if ((pPlayerInfo->playerState == PLAYER_STATE_PAUSE) && (pPauseFrame != NULL))
+    //keep one frame in videoOutput for display more smooth.
+    if (pLastFrame == NULL)
     {
+        pLastFrame = pFrame;
         return;
     }
-    else if (pPauseFrame != NULL)
+
+    if (pLastFrame && pLastFrame != pFrame)
     {
-        //reset pPauseFrame state for which decoder can use it again
-        pPauseFrame->DecState = DecWait;
-        pPauseFrame->DispState = DispOver;
+        pLastFrame->DecState = DecWait;
+        pLastFrame->DispState = DispOver;
+        pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
+
+        pLastFrame = pFrame;
     }
-    pFrame->DecState = DecWait;
-    pFrame->DispState = DispOver;
-    pPlayerInfo->pWaitCondVideoDecodeThread->wakeAll();
 }
 
 void VideoOutput::setCallback(pFuncCallback callback)

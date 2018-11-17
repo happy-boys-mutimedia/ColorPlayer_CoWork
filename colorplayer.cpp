@@ -1,4 +1,4 @@
-#include "colorplayer.h"
+﻿#include "colorplayer.h"
 #include "audioplay_sdl2.h"
 #include "audiodecodethread.h"
 #include "videodecodethread.h"
@@ -43,6 +43,7 @@ ColorPlayer::ColorPlayer()
     player = NULL;
     bOpened = 0;
     isOnlyMusic = 0;
+    isOnlyVideo = 0;
     pMasterClock = new MasterClock();
 }
 
@@ -74,6 +75,13 @@ int ColorPlayer::open(const char *url)
         return FAILED;
     }
     isOnlyMusic = XFFmpeg::Get()->IsOnlyMusic();
+    player->isOnlyMusic = isOnlyMusic;
+
+    isOnlyVideo = XFFmpeg::Get()->IsOnlyVideo();
+    if (isOnlyVideo)
+    {
+        cancel_avsync();
+    }
 
     DemuxThread::Get()->initPlayerInfo(player);
     DemuxThread::Get()->initRawQueue(player);
@@ -91,9 +99,9 @@ int ColorPlayer::open(const char *url)
     AudioDecodeThread::Get()->initDecodeFrameQueue(player);
     SDL2AudioDisplayThread::Get()->initPlayerInfo(player);
     SDL2AudioDisplayThread::Get()->initDisplayQueue(player);
-    SDL2AudioDisplayThread::Get()->init();
     SDL2AudioDisplayThread::Get()->initMasterClock(pMasterClock);
     SDL2AudioDisplayThread::Get()->setCallback(seekDoneCallBack);
+    SDL2AudioDisplayThread::Get()->init();
     pMasterClock->open(AUDIO_MASTER);
     bOpened = 1;
 
@@ -132,14 +140,13 @@ int ColorPlayer::play()
 {
     qDebug()<< "start thread";
     DemuxThread::Get()->start();
-    SDL2AudioDisplayThread::Get()->start();
-    AudioDecodeThread::Get()->start();
-
     if (!isOnlyMusic)
     {
         VideoDecodeThread::Get()->start();
         VideoOutput::Get()->start();
     }
+    AudioDecodeThread::Get()->start();
+    SDL2AudioDisplayThread::Get()->start();
 
     if (player)
         player->playerState = PLAYER_STATE_START;
@@ -150,9 +157,12 @@ int ColorPlayer::play()
 int ColorPlayer::pause()
 {
     mutex.lock();
-    MessageCmd_t MsgCmd;
+
+    if (player)
+        player->playerState = PLAYER_STATE_PAUSE;
 
     qDebug()<< "ColorPlayer send pause cmd!!";
+    MessageCmd_t MsgCmd;
     MsgCmd.cmd = MESSAGE_CMD_PAUSE;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
@@ -160,8 +170,6 @@ int ColorPlayer::pause()
     {
         VideoOutput::Get()->queueMessage(MsgCmd);
     }
-    if (player)
-        player->playerState = PLAYER_STATE_PAUSE;
 
     mutex.unlock();
 
@@ -334,6 +342,27 @@ int ColorPlayer::set_speed()
 
 int ColorPlayer::get_speed()
 {
+    return SUCCESS;
+}
+
+int ColorPlayer::multiplePlay(float value)
+{
+    qDebug()<< "ColorPlayer send multiplePlay cmd!!";
+    MessageCmd_t MsgCmd;
+    MsgCmd.cmd = MESSAGE_CMD_MULTIPLE_PLAY;
+    MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+    SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
+    if (!isOnlyMusic)
+    {
+        VideoOutput::Get()->queueMessage(MsgCmd);
+    }
+
+    SDL2AudioDisplayThread::Get()->stop();
+    SDL2AudioDisplayThread::Get()->deinit();
+    SDL2AudioDisplayThread::Get()->setMultiplePlay(value);
+    SDL2AudioDisplayThread::Get()->init();
+    SDL2AudioDisplayThread::Get()->start();
+
     return SUCCESS;
 }
 

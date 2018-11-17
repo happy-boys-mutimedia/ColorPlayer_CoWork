@@ -1,4 +1,4 @@
-#include "ffmpeg.h"
+﻿#include "ffmpeg.h"
 #include <qdebug>
 #include <QDebug>
 #include <QTime>
@@ -230,6 +230,19 @@ int XFFmpeg::IsOnlyMusic(void)
     }
 }
 
+int XFFmpeg::IsOnlyVideo(void)
+{
+    if (audioStreamidx == -1 && videostreamidx != -1)
+    {
+        qDebug()<<"is only video mode";
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 int XFFmpeg::GetPts(const AVPacket *pkt)
 {
 
@@ -291,6 +304,17 @@ int XFFmpeg::Decode(const AVPacket *pkt, AVFrame *frame)
         return NULL;
     }
 
+    if (pkt->stream_index == videostreamidx && frame->pts == AV_NOPTS_VALUE)
+    {
+        //qDebug()<<"pkt dts "<<pkt->dts;
+        frame->pts = pkt->dts;
+    }
+
+    if (pkt->stream_index == audioStreamidx)
+    {
+        nb_samples  = frame->nb_samples;
+    }
+
     AVRational playTimeBase;
     playTimeBase.num = 1;
     playTimeBase.den = 1000;
@@ -346,7 +370,6 @@ bool XFFmpeg::ToRGB(char *out, int outwidth, int outheight)
 
     if (!ic || yuv == NULL)
     {
-
         return false;
     }
 
@@ -404,14 +427,16 @@ int XFFmpeg::ToPCM(char *out)
 
     uint8_t *data[1];
     data[0] = (uint8_t *)out;
-    int len = swr_convert(SwrCtx, data, 10000, (const uint8_t **)pcm->data, pcm->nb_samples);
+    int out_samples = frame_size?frame_size:1024;
+    int len = swr_convert(SwrCtx, data, out_samples, (const uint8_t **)pcm->data, pcm->nb_samples);
     if (len < 0)
     {
         qDebug()<<"ToPCM swr_convert error";
         return 0;
     }
     int outsize = av_samples_get_buffer_size(NULL, ctx->channels,
-        pcm->nb_samples, AV_SAMPLE_FMT_S16, 0);
+        out_samples, AV_SAMPLE_FMT_S16, 0);
+
     return outsize;
 }
 

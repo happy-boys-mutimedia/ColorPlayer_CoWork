@@ -8,11 +8,7 @@
 #include "videodecodethread.h"
 #include "videooutput.h"
 #include "colorplayer.h"
-
-
-QImage *image = NULL;
-int TimerID = -1;
-QPainter painter;
+#include <QEvent>
 
 static int getTimeInUs()
 {
@@ -28,6 +24,7 @@ static int getTimeInUs()
 VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
 {
     pPlayerInfo = NULL;
+    bWindowMini = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -35,15 +32,16 @@ VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
         qDebug()<<"VideoWidget() error\n";
     }
 
-    TimerID = startTimer(10);
+    TimerID = startTimer(30);
 }
 
-Frame *pPauseFrame = NULL;
+
 
 void VideoWidget::paintEvent(QPaintEvent *e)
 {
     static int w = 0;//记录上一次的界面宽
     static int h = 0;//记录上一次的界面高
+    Frame *pFrame = NULL;
 
     if (pPlayerInfo == NULL)
     {
@@ -57,6 +55,7 @@ void VideoWidget::paintEvent(QPaintEvent *e)
 
     if (pPlayerInfo->playerState == PLAYER_STATE_STOP)
     {
+        qDebug()<<"VideoWidget::paintEvent ==> stop";
         return;
     }
 
@@ -73,25 +72,50 @@ void VideoWidget::paintEvent(QPaintEvent *e)
         h = height();
     }
 
-    Frame *pFrame = NULL;
     pFrame = VideoOutput::Get()->GetFrameFromDisplayQueue(pPlayerInfo);
-    if (!pFrame)
-        return;
-
-    XFFmpeg::Get()->PutFrameToConvert(XFFmpeg::Get()->videostreamidx, pFrame->frame);
-    XFFmpeg::Get()->ToRGB((char*)image->bits(), width(), height());
+    if (pFrame)
+    {
+        XFFmpeg::Get()->PutFrameToConvert(XFFmpeg::Get()->videostreamidx, pFrame->frame);
+        XFFmpeg::Get()->ToRGB((char*)image->bits(), width(), height());
+    }
 
     painter.begin(this);
     painter.drawImage(QPoint(0, 0),*image);
     painter.end();
 
-    VideoOutput::Get()->receiveFrametoDisplayQueue(pFrame);
-
+    if (pFrame)
+        VideoOutput::Get()->receiveFrametoDisplayQueue(pFrame);
 }
 
 void VideoWidget::timerEvent(QTimerEvent *e)
 {
-    this->update();
+    MessageCmd_t MsgCmd;
+    Frame *pFrame = NULL;
+
+    if (pMessage->message_dequeue(&MsgCmd) == SUCCESS)
+    {
+        if (MESSAGE_CMD_WINDOW_MINMiZED == MsgCmd.cmd)
+        {
+            qDebug()<<"VideoWidget::timerEvent get cmd MESSAGE_CMD_WINDOW_MINMiZED";
+            bWindowMini = 1;
+        }
+        else if (MESSAGE_CMD_WINDOW_RESUME == MsgCmd.cmd)
+        {
+            qDebug()<<"VideoWidget::timerEvent get cmd MESSAGE_CMD_WINDOW_RESUME";
+            bWindowMini = 0;
+        }
+    }
+
+    if (!bWindowMini)
+    {
+        this->update();
+    }
+    else if (pPlayerInfo)
+    {
+        pFrame = VideoOutput::Get()->GetFrameFromDisplayQueue(pPlayerInfo);
+        if (pFrame)
+            VideoOutput::Get()->receiveFrametoDisplayQueue(pFrame);
+    }
 }
 
 

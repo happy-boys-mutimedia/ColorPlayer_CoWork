@@ -1,4 +1,4 @@
-#ifndef FFMPEG_H
+﻿#ifndef FFMPEG_H
 #define FFMPEG_H
 
 extern "C"{
@@ -29,6 +29,7 @@ public:
     void Flush();
     int GetPts(const AVPacket *pkt);//返回码流包的pts
     int IsOnlyMusic(void);//是否只有音频流
+    int IsOnlyVideo(void);//是否只有视频流
     bool ToRGB(char *out, int outwidth, int outheight);
     int PutFrameToConvert(int StreamID, AVFrame *pFrame);
     int ToPCM(char *out);//转换为pcm格式
@@ -50,6 +51,7 @@ public:
     int sampleFormate = 1;
     int channel = 0;
     int frame_size = 0;
+    int nb_samples = 1024;
     bool isPlay = true;
     FILE *fp = NULL;
     AVFormatContext *ic = NULL;
