@@ -28,6 +28,7 @@ public:
     XSlider *PlaySlider;
     QLabel *PlayTime;
     QLabel *TotalTime;
+    XSlider *AudioSlider;
 
     void setupUi(QWidget *Widget)
     {
@@ -45,13 +46,13 @@ public:
         openGLWidget->setMaximumSize(QSize(1920, 1080));
         PlaySlider = new XSlider(Widget);
         PlaySlider->setObjectName(QStringLiteral("PlaySlider"));
-        PlaySlider->setGeometry(QRect(46, 320, 361, 22));
+        PlaySlider->setGeometry(QRect(46, 320, 311, 22));
         PlaySlider->setMaximum(999);
         PlaySlider->setPageStep(100);
         PlaySlider->setOrientation(Qt::Horizontal);
         PlayTime = new QLabel(Widget);
         PlayTime->setObjectName(QStringLiteral("PlayTime"));
-        PlayTime->setGeometry(QRect(410, 320, 48, 16));
+        PlayTime->setGeometry(QRect(360, 320, 48, 16));
         QSizePolicy sizePolicy1(QSizePolicy::Expanding, QSizePolicy::Expanding);
         sizePolicy1.setHorizontalStretch(0);
         sizePolicy1.setVerticalStretch(0);
@@ -64,8 +65,18 @@ public:
         sizePolicy1.setHeightForWidth(TotalTime->sizePolicy().hasHeightForWidth());
         TotalTime->setSizePolicy(sizePolicy1);
         TotalTime->setStyleSheet(QStringLiteral("background-color: rgb(255, 255, 255);"));
+        AudioSlider = new XSlider(Widget);
+        AudioSlider->setObjectName(QStringLiteral("AudioSlider"));
+        AudioSlider->setGeometry(QRect(410, 320, 41, 22));
+        sizePolicy.setHeightForWidth(AudioSlider->sizePolicy().hasHeightForWidth());
+        AudioSlider->setSizePolicy(sizePolicy);
+        AudioSlider->setMaximum(999);
+        AudioSlider->setPageStep(100);
+        AudioSlider->setOrientation(Qt::Horizontal);
 
         retranslateUi(Widget);
+        QObject::connect(AudioSlider, SIGNAL(sliderPressed()), Widget, SLOT(AudioSlider_pressed()));
+        QObject::connect(AudioSlider, SIGNAL(sliderReleased()), Widget, SLOT(AudioSlider_released()));
 
         QMetaObject::connectSlotsByName(Widget);
     } // setupUi

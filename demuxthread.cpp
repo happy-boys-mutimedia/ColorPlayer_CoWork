@@ -44,6 +44,7 @@ DemuxThread::DemuxThread()
     pPlayerInfo = NULL;
     bStop = 0;
     bFirstVideoPkt = 1;
+    bNetworkStream = 0;
 
     pMessage = new message();
     if (!pMessage)
@@ -54,7 +55,6 @@ DemuxThread::DemuxThread()
 DemuxThread::~DemuxThread()
 {
     qDebug()<<"~DemuxThread() IN";
-    stop();//stop run thread
 
     if (pPlayerInfo)
     {
@@ -80,6 +80,10 @@ void DemuxThread::run()
 {
     myPacket *tempMyPkt = NULL;
 
+    MessageCmd_t Msgcmd;
+    Msgcmd.cmd = MESSAGE_CMD_NONE;
+    Msgcmd.cmdType = MESSAGE_QUEUE_TYPES;
+
     int bEof = 0;
     bStop = 0;
     bFirstVideoPkt = 1;
@@ -92,6 +96,15 @@ void DemuxThread::run()
             continue;
         }
 
+        if (pMessage->message_dequeue(&Msgcmd) == SUCCESS)
+        {
+            if (Msgcmd.cmd == MESSAGE_CMD_NETWORK_STREAM)
+            {
+                qDebug()<<"DemuxThread get NETWORK_STREAM cmd~~ ";
+                bNetworkStream = true;
+            }
+        }
+
         if ((pPlayerInfo->videoPacketQueue.Queue->count() + pPlayerInfo->audioPacketQueue.Queue->count()) * sizeof(AVPacket) > MAX_SIZE)
         {
             msleep(1000);
@@ -101,7 +114,8 @@ void DemuxThread::run()
         }
 
         AVPacket pkt = XFFmpeg::Get()->Read(&bEof);//读取一包
-        if (bEof == 1)
+
+        if (bEof == 1 && !bNetworkStream)
         {
             bStop = 1;
             MessageCmd_t MsgCmd;
@@ -179,6 +193,8 @@ int DemuxThread::initRawQueue(PlayerInfo *pPI)
 void DemuxThread::deinitRawQueue(PlayerInfo *pPI)
 {
     bFirstVideoPkt = 1;
+    bNetworkStream = 0;
+    bStop = 0;
 
     if (pPI)
     {

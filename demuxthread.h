@@ -1,4 +1,4 @@
-#ifndef DEMUXTHREAD_H
+﻿#ifndef DEMUXTHREAD_H
 #define DEMUXTHREAD_H
 #include "colorplayer.h"
 #include "messagequeue.h"
@@ -15,6 +15,7 @@ public:
         return &vt;
     }
     void run();
+    int bStop;
     void stop();
     void initPlayerInfo(PlayerInfo *pPI);
     int initRawQueue(PlayerInfo *pPI);
@@ -26,9 +27,8 @@ private:
     DemuxThread();
     PlayerInfo *pPlayerInfo;
     message *pMessage;
-    int bStop;
-    int bStopDone;
     int bFirstVideoPkt;
+    int bNetworkStream;
     QMutex mutex;
     QWaitCondition WaitCondStopDone;
 };

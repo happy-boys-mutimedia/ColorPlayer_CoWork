@@ -34,7 +34,7 @@ VideoOutput::VideoOutput()
 VideoOutput::~VideoOutput()
 {
     qDebug()<<"~VideoOutput() IN";
-    stop();//stop run thread
+
 
     if (pMessage)
     {
@@ -65,7 +65,7 @@ int VideoOutput::DecideKeepFrame(int need_av_sync, int64_t pts)
     late = CalcSyncLate(pts);
     if (late < 0)
     {
-        qDebug()<<"video pts is late need drop this frame late: "<<late;
+        qDebug()<<"video pts is late need drop this frame late: "<<late<<"video pts "<<pts;
         return 0;
     }
 
@@ -232,6 +232,7 @@ void VideoOutput::run()
             else
             {
                 pFrame = pPlayerInfo->VDispQueue.Queue->takeFirst();
+                //qDebug()<<"VDispQueue count ==> "<<pPlayerInfo->VDispQueue.Queue->count()<<"get video pts "<<pFrame->frame->pts;
             }
             pPlayerInfo->VDispQueue.mutex.unlock();
 
@@ -324,6 +325,13 @@ void VideoOutput::initDisplayQueue(PlayerInfo *pPI)
 
 void VideoOutput::deinitDisplayQueue(PlayerInfo *pPI)
 {
+    if (pLastFrame)
+    {
+        pLastFrame->DecState = DecWait;
+        pLastFrame->DispState = DispOver;
+        pLastFrame = NULL;
+    }
+
     if (pPI)
     {
         pPI->Video2WidgetQueue.Queue->clear();
@@ -357,6 +365,7 @@ Frame* VideoOutput::GetFrameFromDisplayQueue(PlayerInfo *pPI)
     if (!pPI->Video2WidgetQueue.Queue->isEmpty())
     {
         pFrame = pPI->Video2WidgetQueue.Queue->takeFirst();
+        //qDebug()<<"Video2WidgetQueue count ==> "<<pPlayerInfo->VDispQueue.Queue->count()<<"get video pts "<<pFrame->frame->pts;
     }
     else
     {

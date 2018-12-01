@@ -4,6 +4,7 @@
 #include <QTime>
 #include <QApplication>
 #include "colorplayer.h"
+#include "demuxthread.h"
 
 #define SAVEYUV 0
 extern PlayerInfo *pVS;
@@ -20,22 +21,28 @@ static int getTimeInUs()
     return (hour * 60 * 60 * 1000000 + minute * 60 * 1000000 + second * 1000000 + msec * 1000);
 }
 
-static void sleepMs_my(unsigned int SleepMs)
-{
-    QTime dieTime = QTime::currentTime().addMSecs(SleepMs);
-    while(QTime::currentTime() < dieTime)
-    {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
-    }
-}
-
 static double r2d(AVRational r)
 {
     return r.num == 0 || r.den == 0 ? 0. : (double)r.num / (double)r.den;
 }
 
+int InterruptCallback(void *p)
+{
+    if (DemuxThread::Get()->bStop && !XFFmpeg::Get()->bSeek)
+    {
+        qDebug()<<"InterruptCallback block return 1";
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 bool XFFmpeg::Open(const char *path)
 {
+    int ret;
+
     mutex.lock();
 
 #if SAVEYUV
@@ -49,12 +56,22 @@ bool XFFmpeg::Open(const char *path)
     qDebug()<<"test.yuv ok";
 #endif
 
-    int ret = avformat_open_input(&ic, path, NULL, NULL);
-    if (ret != 0 || ic == NULL)
+    ic = avformat_alloc_context();
+    if (ic == NULL)
+    {
+        mutex.unlock();
+        qDebug()<<"avformat_alloc_context error";
+        return false;
+    }
+    ic->interrupt_callback.callback = InterruptCallback;
+    ic->interrupt_callback.opaque = NULL;
+
+    ret = avformat_open_input(&ic, path, NULL, NULL);
+    if (ret != 0)
     {
         mutex.unlock();
         av_strerror(ret, errorbuf, sizeof(errorbuf));
-        qDebug()<<"avformat_open_input error";
+        qDebug()<<"avformat_open_input error"<<errorbuf;
         return false;
     }
 
@@ -268,6 +285,7 @@ void XFFmpeg::Flush()
     {
         avcodec_flush_buffers(audio_avctx);
     }
+    XFFmpeg::Get()->bSeek = 0;
     mutex.unlock();
 }
 
@@ -468,6 +486,7 @@ XFFmpeg::XFFmpeg()
     av_register_all();
     videostreamidx = -1;
     audioStreamidx = -1;
+    bSeek = 0;
 }
 
 

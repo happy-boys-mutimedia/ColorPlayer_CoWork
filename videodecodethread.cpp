@@ -170,8 +170,8 @@ void VideoDecodeThread::run()
             }
             else
             {
-                //qDebug()<<" video Raw Queue empty !!";
-                msleep(1);
+                qDebug()<<" video Raw Queue empty !!";
+                msleep(10);
                 continue;
             }
         }
@@ -223,6 +223,7 @@ void VideoDecodeThread::run()
         pPlayerInfo->VDispQueue.mutex.lock();
         pFrame->DecState = DecOver;
         pFrame->DispState = DispWait;
+        //qDebug()<<"video ==> pts = "<<pFrame->frame->pts;
         pPlayerInfo->VDispQueue.Queue->append(pFrame);
         pPlayerInfo->pWaitCondVideoOutputThread->wakeAll();
         pPlayerInfo->VDispQueue.mutex.unlock();
@@ -295,7 +296,7 @@ VideoDecodeThread::~VideoDecodeThread()
 {
     qDebug()<<"~VideoDecodeThread() IN";
 
-    stop();//stop run thread
+
 
     if (pPlayerInfo)
     {

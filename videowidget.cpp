@@ -9,6 +9,7 @@
 #include "videooutput.h"
 #include "colorplayer.h"
 #include <QEvent>
+#include <QKeyEvent>
 
 static int getTimeInUs()
 {
@@ -25,22 +26,21 @@ VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
 {
     pPlayerInfo = NULL;
     bWindowMini = 0;
+    bDoubleClick = 0;
+    beforeFullScreenWidth = 1280;
+    beforeFullScreenHeight = 720;
 
     pMessage = new message();
     if (!pMessage)
     {
         qDebug()<<"VideoWidget() error\n";
     }
-
-    TimerID = startTimer(30);
 }
 
-
-
+static int w = 0;//记录上一次的界面宽
+static int h = 0;//记录上一次的界面高
 void VideoWidget::paintEvent(QPaintEvent *e)
 {
-    static int w = 0;//记录上一次的界面宽
-    static int h = 0;//记录上一次的界面高
     Frame *pFrame = NULL;
 
     if (pPlayerInfo == NULL)
@@ -53,14 +53,16 @@ void VideoWidget::paintEvent(QPaintEvent *e)
         }
     }
 
-    if (pPlayerInfo->playerState == PLAYER_STATE_STOP)
+    if (pPlayerInfo->playerState != PLAYER_STATE_START && pPlayerInfo->playerState != PLAYER_STATE_PAUSE)
     {
-        qDebug()<<"VideoWidget::paintEvent ==> stop";
+        //qDebug()<<"VideoWidget::paintEvent ==> stop";
         return;
     }
 
+    //qDebug()<<"VideoWidget::paintEvent IN ==>"<<getCurrentTimeInMs();
     if ((w != width() || h != height()) && image != NULL)
     {
+        qDebug()<<"VideoWidget::paintEvent ==> w "<<w<<"h "<<h<<"==> new width "<<width()<<"height "<<height();
         delete image;
         image = NULL;
     }
@@ -76,15 +78,15 @@ void VideoWidget::paintEvent(QPaintEvent *e)
     if (pFrame)
     {
         XFFmpeg::Get()->PutFrameToConvert(XFFmpeg::Get()->videostreamidx, pFrame->frame);
+
         XFFmpeg::Get()->ToRGB((char*)image->bits(), width(), height());
-    }
 
-    painter.begin(this);
-    painter.drawImage(QPoint(0, 0),*image);
-    painter.end();
+        painter.begin(this);
+        painter.drawImage(QPoint(0, 0),*image);
+        painter.end();
 
-    if (pFrame)
         VideoOutput::Get()->receiveFrametoDisplayQueue(pFrame);
+    }
 }
 
 void VideoWidget::timerEvent(QTimerEvent *e)
@@ -118,6 +120,66 @@ void VideoWidget::timerEvent(QTimerEvent *e)
     }
 }
 
+void VideoWidget::mouseDoubleClickEvent(QMouseEvent *m)
+{
+    qDebug()<<"VideoWidget::mouseDoubleClickEvent IN";
+
+    bDoubleClick = !bDoubleClick;
+    if (bDoubleClick)
+    {
+        beforeFullScreenWidth = width();
+        beforeFullScreenHeight = height();
+        setWindowFlags(Qt::Dialog);
+        showFullScreen();
+    }
+    else
+    {
+        setWindowFlags(Qt::SubWindow);
+        showNormal();
+        resize(beforeFullScreenWidth, beforeFullScreenHeight);
+        move(0,0);
+    }
+}
+
+void VideoWidget::keyPressEvent(QKeyEvent *event)
+{
+    qDebug()<<"VideoWidget::keyPressEvent:"<<event->key();
+    if (event->key() == Qt::Key_Escape)
+    {
+        if (bDoubleClick)
+        {
+            qDebug()<<"VideoWidget ==> Qt::Key_Escape "<<bDoubleClick;
+            setWindowFlags(Qt::SubWindow);
+            showNormal();
+            resize(beforeFullScreenWidth, beforeFullScreenHeight);
+            move(0,0);
+            bDoubleClick = !bDoubleClick;
+        }
+    }
+}
+
+void VideoWidget::startVideoWidget(int fps)
+{
+    qDebug()<<"VideoWidget::startVideoWidget fps =>"<<fps;
+    int timerMs = 30;
+
+    if (fps)
+        timerMs = 1000/fps;
+    timerMs = timerMs - 10;
+
+    qDebug()<<"fps "<<fps<<"timerMs "<<timerMs<<"ms";
+    TimerID = startTimer(timerMs);
+}
+
+void VideoWidget::stopVideoWidget(void)
+{
+    qDebug()<<"VideoWidget::stopVideoWidget IN";
+    if (TimerID != -1)
+    {
+        killTimer(TimerID);
+        TimerID = -1;
+    }
+}
 
 VideoWidget::~VideoWidget()
 {

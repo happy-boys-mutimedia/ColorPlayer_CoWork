@@ -13,6 +13,10 @@ public:
     VideoWidget(QWidget *p = NULL);
     void paintEvent(QPaintEvent *e);
     void timerEvent(QTimerEvent *e);
+    void mouseDoubleClickEvent(QMouseEvent *m);
+    void keyPressEvent(QKeyEvent *event);
+    void startVideoWidget(int fps);
+    void stopVideoWidget(void);
 
     message *pMessage;
     virtual ~VideoWidget();
@@ -24,6 +28,9 @@ private:
     int TimerID = -1;
     QPainter painter;
     int bWindowMini;
+    int bDoubleClick;
+    int beforeFullScreenWidth;
+    int beforeFullScreenHeight;
 };
 
 #endif // VIDEOWIDGET_H
