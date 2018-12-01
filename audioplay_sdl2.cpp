@@ -79,7 +79,7 @@ void _SDL2_fill_audio_callback(void *udata, unsigned char *stream, int len)
             break;
         }
 
-        SDL_MixAudio(stream, (const Uint8*)pPCMBuffer->bufferAddr + buffer_size_index, buffer_size_read, SDL_MIX_MAXVOLUME);
+        SDL_MixAudio(stream, (const Uint8*)pPCMBuffer->bufferAddr + buffer_size_index, buffer_size_read, SDL_MIX_MAXVOLUME * pADT->volume);
         len -= buffer_size_read;
         buffer_size_index += buffer_size_read;
     }
@@ -348,6 +348,7 @@ SDL2AudioDisplayThread::SDL2AudioDisplayThread()
     bInit = 0;
     _funcCallback = NULL;
     MultiplePlay = 1.0;
+    volume = 0.5;
 
     pMessage = new message();
     if (!pMessage)
@@ -416,7 +417,7 @@ SDL2AudioDisplayThread::~SDL2AudioDisplayThread()
     SDL_CloseAudio();//Close SDL
     SDL_Quit();
 
-    stop();
+
 
     if (pMessage)
     {

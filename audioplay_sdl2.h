@@ -34,6 +34,7 @@ public:
     PlayerInfo *player;
     MasterClock * pMasterClock;
     int bFirstFrame;
+    float volume;
     pFuncCallback _funcCallback;
 private:
     PCMBuffer_t PCMBuffers[FRAME_QUEUE_SIZE];

@@ -1,5 +1,6 @@
-#include "common.h"
+﻿#include "common.h"
 #include <QTime>
+#include <QCoreApplication>
 
 int64_t getCurrentTimeInMs()
 {
@@ -10,4 +11,13 @@ int64_t getCurrentTimeInMs()
     int msec = current_time.msec();
 
     return (hour * 60 * 60 * 1000 + minute * 60 * 1000 + second * 1000 + msec);
+}
+
+void sleepMs_my(unsigned int SleepMs)
+{
+    QTime dieTime = QTime::currentTime().addMSecs(SleepMs);
+    while(QTime::currentTime() < dieTime)
+    {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+    }
 }

@@ -8,6 +8,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += multimedia
+RC_ICONS = colorplayer_1.ico
 
 TARGET = ColorPlayer
 TEMPLATE = app
@@ -27,6 +28,7 @@ SOURCES += main.cpp\
     messagequeue.cpp \
     common.cpp \
     masterclock.cpp
+
 
 HEADERS  += widget.h \
     xslider.h \

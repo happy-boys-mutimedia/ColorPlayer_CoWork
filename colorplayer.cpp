@@ -44,13 +44,8 @@ ColorPlayer::ColorPlayer()
     bOpened = 0;
     isOnlyMusic = 0;
     isOnlyVideo = 0;
+    isNetworkStream = 0;
     pMasterClock = new MasterClock();
-}
-
-int ColorPlayer::open(const char *url)
-{
-    qDebug()<<"ColorPlayer::open IN";
-    mutex.lock();
 
     if (!player)
     {
@@ -58,8 +53,6 @@ int ColorPlayer::open(const char *url)
         if (!player)
         {
             qDebug()<<"alloc PlayerInfo fail";
-            mutex.unlock();
-            return FAILED;
         }
         memset(player, 0, sizeof(PlayerInfo));
         player->pWaitCondAudioDecodeThread = new QWaitCondition;
@@ -67,6 +60,29 @@ int ColorPlayer::open(const char *url)
         player->pWaitCondVideoDecodeThread = new QWaitCondition;
         player->pWaitCondVideoOutputThread = new QWaitCondition;
     }
+
+    DemuxThread::Get()->initPlayerInfo(player);
+    DemuxThread::Get()->initRawQueue(player);
+    VideoDecodeThread::Get()->initPlayerInfo(player);
+    VideoDecodeThread::Get()->initDecodeFrameQueue(player);
+    VideoOutput::Get()->initPlayerInfo(player);
+    VideoOutput::Get()->initDisplayQueue(player);
+    VideoOutput::Get()->initMasterClock(pMasterClock);
+    VideoOutput::Get()->setCallback(seekDoneCallBack);
+    AudioDecodeThread::Get()->initDecodeFrameQueue(player);
+    AudioDecodeThread::Get()->initPlayerInfo(player);
+    SDL2AudioDisplayThread::Get()->initPlayerInfo(player);
+    SDL2AudioDisplayThread::Get()->initMasterClock(pMasterClock);
+    SDL2AudioDisplayThread::Get()->setCallback(seekDoneCallBack);
+    SDL2AudioDisplayThread::Get()->initDisplayQueue(player);
+
+    player->playerState = PLAYER_STATE_NONE;
+}
+
+int ColorPlayer::open(const char *url)
+{
+    qDebug()<<"ColorPlayer::open IN";
+    mutex.lock();
 
     if (!XFFmpeg::Get()->Open(url))
     {
@@ -83,26 +99,9 @@ int ColorPlayer::open(const char *url)
         cancel_avsync();
     }
 
-    DemuxThread::Get()->initPlayerInfo(player);
-    DemuxThread::Get()->initRawQueue(player);
-
-    if (!isOnlyMusic)
-    {
-        VideoDecodeThread::Get()->initPlayerInfo(player);
-        VideoDecodeThread::Get()->initDecodeFrameQueue(player);
-        VideoOutput::Get()->initPlayerInfo(player);
-        VideoOutput::Get()->initDisplayQueue(player);
-        VideoOutput::Get()->initMasterClock(pMasterClock);
-        VideoOutput::Get()->setCallback(seekDoneCallBack);
-    }
-    AudioDecodeThread::Get()->initPlayerInfo(player);
-    AudioDecodeThread::Get()->initDecodeFrameQueue(player);
-    SDL2AudioDisplayThread::Get()->initPlayerInfo(player);
-    SDL2AudioDisplayThread::Get()->initDisplayQueue(player);
-    SDL2AudioDisplayThread::Get()->initMasterClock(pMasterClock);
-    SDL2AudioDisplayThread::Get()->setCallback(seekDoneCallBack);
     SDL2AudioDisplayThread::Get()->init();
     pMasterClock->open(AUDIO_MASTER);
+
     bOpened = 1;
 
     mutex.unlock();
@@ -115,16 +114,17 @@ int ColorPlayer::close()
     qDebug()<<"ColorPlayer start to close";
     stop();
 
-    SDL2AudioDisplayThread::Get()->deinitDisplayQueue(player);
+
+    SDL2AudioDisplayThread::Get()->flush();
     SDL2AudioDisplayThread::Get()->deinit();
 
     if (!isOnlyMusic)
     {
         VideoOutput::Get()->deinitDisplayQueue(player);
-        VideoDecodeThread::Get()->deinitDecodeFrameQueue(player);
+        VideoDecodeThread::Get()->flushDecodeFrameQueue(player);
     }
 
-    AudioDecodeThread::Get()->deinitDecodeFrameQueue(player);
+    AudioDecodeThread::Get()->flushDecodeFrameQueue(player);
 
     DemuxThread::Get()->deinitRawQueue(player);
 
@@ -132,13 +132,15 @@ int ColorPlayer::close()
 
     pMasterClock->close();
 
+    player->playerState == PLAYER_STATE_NONE;
     qDebug()<<"ColorPlayer end to close";
     return SUCCESS;
 }
 
 int ColorPlayer::play()
 {
-    qDebug()<< "start thread";
+    qDebug()<< "ColorPlayer::play() ==> start thread";
+
     DemuxThread::Get()->start();
     if (!isOnlyMusic)
     {
@@ -190,7 +192,7 @@ int ColorPlayer::resume()
         VideoOutput::Get()->queueMessage(MsgCmd);
     }
     if (player)
-        player->playerState = PLAYER_STATE_RESUME;
+        player->playerState = PLAYER_STATE_START;
 
     mutex.unlock();
 
@@ -222,6 +224,27 @@ int ColorPlayer::set_pos()
     return SUCCESS;
 }
 
+int ColorPlayer::set_volume(float volume)
+{
+    SDL2AudioDisplayThread::Get()->volume = volume;
+
+    return SUCCESS;
+}
+
+int ColorPlayer::set_networkStreamFlag(int bNetworkStream)
+{
+    isNetworkStream = bNetworkStream;
+    qDebug()<< "ColorPlayer send NETWORK_STREAM cmd!!";
+
+    MessageCmd_t MsgCmd;
+    MsgCmd.cmd = MESSAGE_CMD_NETWORK_STREAM;
+    MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
+    if (DemuxThread::Get())
+        DemuxThread::Get()->queueMessage(MsgCmd);
+
+    return SUCCESS;
+}
+
 int64_t ColorPlayer::get_pos()
 {
     return pMasterClock->get_audio_clock();
@@ -240,6 +263,11 @@ int ColorPlayer::get_video_width()
 int ColorPlayer::get_video_height()
 {
     return XFFmpeg::Get()->height;
+}
+
+int ColorPlayer::get_fps()
+{
+    return XFFmpeg::Get()->fps;
 }
 
 int ColorPlayer::cancel_seek()
@@ -295,9 +323,8 @@ int ColorPlayer::seek(float position)
 
     mutex.lock();
 
-    MessageCmd_t MsgCmd;
-
     qDebug()<< "ColorPlayer send seek cmd!!";
+    MessageCmd_t MsgCmd;
     MsgCmd.cmd = MESSAGE_CMD_SEEK;
     MsgCmd.cmdType = MESSAGE_CMD_QUEUE;
     SDL2AudioDisplayThread::Get()->queueMessage(MsgCmd);
@@ -308,11 +335,17 @@ int ColorPlayer::seek(float position)
 
     _seekDoneVideo = 0;
     _seekDoneAudio = 0;
+
     stop();
+
+    if (player)
+        player->playerState = PLAYER_STATE_SEEK;
+
     if (XFFmpeg::Get()->Seek(position) == true)
     {
         flush();
     }
+
     play();
 
     if (isOnlyMusic)

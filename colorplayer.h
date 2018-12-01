@@ -160,10 +160,13 @@ public:
     int resume();
     int stop();
     int set_pos();
+    int set_volume(float volume);
+    int set_networkStreamFlag(int bNetworkStream);
     int64_t get_pos();
     int get_play_time_ms();
     int get_video_width();
     int get_video_height();
+    int get_fps();
     int cancel_seek();
     int need_avsync();
     int cancel_avsync();
@@ -183,6 +186,7 @@ private:
     int bOpened;
     int isOnlyMusic;
     int isOnlyVideo;
+    int isNetworkStream;
 };
 
 

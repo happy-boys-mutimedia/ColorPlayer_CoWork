@@ -176,7 +176,7 @@ void AudioDecodeThread::run()
             else
             {
                 //qDebug()<<" audio Raw Queue empty !!";
-                msleep(1);
+                msleep(10);
                 continue;
             }
         }
@@ -300,7 +300,7 @@ void AudioDecodeThread::queueMessage(MessageCmd_t MsgCmd)
 AudioDecodeThread::~AudioDecodeThread()
 {
     qDebug()<<"~AudioDisplayThread IN";
-    stop();//stop run thread
+
 
     if (pPlayerInfo)
     {

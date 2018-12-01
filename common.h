@@ -1,4 +1,4 @@
-#ifndef COMMON_H
+﻿#ifndef COMMON_H
 #define COMMON_H
 #include "stdint.h"
 
@@ -24,5 +24,6 @@ enum mediaItem
 
 typedef void (*pFuncCallback) (mediaItem);
 int64_t getCurrentTimeInMs();
+void sleepMs_my(unsigned int SleepMs);
 
 #endif // COMMON_H
