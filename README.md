@@ -33,4 +33,4 @@ playback live stream
 ![colorPlayer](img/play_live_stream.PNG)  
 
 Now newest player is below enjoy~
-![colorPlayer](img/play_live_stream.PNG)  
+![colorPlayer](img/newest_player.PNG)  
