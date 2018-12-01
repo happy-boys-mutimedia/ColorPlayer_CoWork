@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QListWidget>
 #include <QMimeData>
+#include <QMovie>
 
 
 static bool isPressedSlider = false;
@@ -77,6 +78,8 @@ Widget::Widget(QWidget *parent) :
     ui->openGLWidget->setAcceptDrops(false);
     setAcceptDrops(true);
 
+    ui->AudioSlider->setValue(0.5 * ui->AudioSlider->maximum());
+
     //无边框
     //setWindowFlags(Qt::FramelessWindowHint);
 
@@ -115,12 +118,8 @@ Widget::~Widget()
     SetThreadExecutionState(ES_CONTINUOUS);
 }
 
-void Widget::on_OpenButton_clicked()
+void Widget::getMultiList(QString url)
 {
-    url = QFileDialog::getOpenFileName(this,QString::fromLocal8Bit("please choose file"));
-    openFile(url);
-    bNetworkStream = 0;
-
     QFileInfo urlFileInfo(url);
     QDir dir = urlFileInfo.absoluteDir();
     if (!dir.exists())
@@ -167,6 +166,14 @@ void Widget::on_OpenButton_clicked()
     connect(listWidget,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(list_doubleclicked(QListWidgetItem*)));
 }
 
+void Widget::on_OpenButton_clicked()
+{
+    url = QFileDialog::getOpenFileName(this,QString::fromLocal8Bit("please choose file"));
+    openFile(url);
+    bNetworkStream = 0;
+    getMultiList(url);
+}
+
 void Widget::on_PlayButton_clicked()
 {
     isPlay = !isPlay;
@@ -200,23 +207,40 @@ void Widget::on_PlaySlider_sliderPressed()
 
 void Widget::on_PlaySlider_sliderReleased()
 {
-    printf("slider_released\n");
+    qDebug()<<"on_PlaySlider_sliderReleased slider_released IN";
     isPressedSlider = false;
     float pos = 0;
     pos = (float)ui->PlaySlider->value() / (float)(ui->PlaySlider->maximum() + 1);
+    qDebug()<<"pos "<<pos;
     if (!bNetworkStream)
         ColorPlayer::Get()->seek(pos);
-    isPlay = !isPlay;
+}
+
+void Widget::AudioSlider_pressed()
+{
+    qDebug()<<"Widget::AudioSlider_pressed IN";
+}
+
+void Widget::AudioSlider_released()
+{
+    qDebug()<<"Widget::AudioSlider_released IN";
+    float pos = 0;
+    pos = (float)ui->AudioSlider->value() / (float)(ui->AudioSlider->maximum() + 1);
+    qDebug()<<"pos ==> "<<pos;
+    ColorPlayer::Get()->set_volume(pos);
 }
 
 void Widget::resizeEvent(QResizeEvent *e)
 {
+    qDebug()<<"Widget::resizeEvent IN"<<"w "<<this->width()<<"h "<<this->height();
+
     this->menuBar->resize(this->width(),25);
     ui->openGLWidget->resize(this->width(), this->height() - 20);
     ui->PlaySlider->move(48,this->height() - 19);
-    ui->PlaySlider->resize(this->width() - 96, ui->PlaySlider->height());
+    ui->PlaySlider->resize(this->width() - 96 - ui->AudioSlider->width(), ui->PlaySlider->height());
+    ui->AudioSlider->move(96 + ui->PlaySlider->width(),this->height() - 19);
     ui->PlayTime->move(0, this->height() - 16);
-    ui->TotalTime->move(this->width() - 48, this->height() - 16);
+    ui->TotalTime->move(this->width() - 48 - ui->AudioSlider->width(), this->height() - 16);
 }
 
 void Widget::timerEvent(QTimerEvent *e)
@@ -236,7 +260,7 @@ void Widget::timerEvent(QTimerEvent *e)
         {
             float rate = (float)playTime / (float)ColorPlayer::Get()->get_play_time_ms();
             if (!isPressedSlider)/*如果没有按下进度条才显示*/
-            ui->PlaySlider->setValue(rate * 1000);
+            ui->PlaySlider->setValue(rate * ui->PlaySlider->maximum());
         }
     }
 }
@@ -259,7 +283,6 @@ void Widget::keyPressEvent(QKeyEvent *event)
             CurPos = 1.0;
         }
         ColorPlayer::Get()->seek(CurPos);
-        isPlay = !isPlay;
     }
     else if(event->key() == Qt::Key_H)
     {
@@ -272,7 +295,6 @@ void Widget::keyPressEvent(QKeyEvent *event)
             CurPos = 0;
         }
         ColorPlayer::Get()->seek(CurPos);
-        isPlay = !isPlay;
     }
 }
 
@@ -282,8 +304,7 @@ void Widget::closeEvent(QCloseEvent *event)
     if (listWidget)
         listWidget->hide();
 
-    //close player
-    ColorPlayer::Get()->close();
+    ColorPlayer::Get()->stop();
 }
 
 void Widget::openFile(QString name)
@@ -300,6 +321,8 @@ void Widget::openFile(QString name)
         {
             bOpened = 1;
             ColorPlayer::Get()->play();
+            int fps = ColorPlayer::Get()->get_fps();
+            ui->openGLWidget->startVideoWidget(fps);
         }
         else
         {
@@ -309,10 +332,13 @@ void Widget::openFile(QString name)
     else
     {
         ColorPlayer::Get()->close();
+        ui->openGLWidget->stopVideoWidget();
         if (ColorPlayer::Get()->open(name.toLocal8Bit()) == SUCCESS)
         {
             bOpened = 1;
             ColorPlayer::Get()->play();
+            int fps = ColorPlayer::Get()->get_fps();
+            ui->openGLWidget->startVideoWidget(fps);
         }
         else
         {
@@ -455,14 +481,17 @@ void Widget::trigerMenu(QAction* act)
     if(act->text() == "close")
     {
         ColorPlayer::Get()->close();
+        ui->openGLWidget->stopVideoWidget();
         bNetworkStream = 0;
         return;
     }
 
     if(act->text() == "open network stream")
     {
-        QString text = QInputDialog::getText(this, "network URL", "Please inter URL");
-        openFile(text);
+        QString url = QInputDialog::getText(this, "network URL", "Please inter URL", QLineEdit::Normal,
+                                             "http://dlhls.cdn.zhanqi.tv/zqlive/49427_jmACJ.m3u8");
+        ColorPlayer::Get()->set_networkStreamFlag(true);
+        openFile(url);
         bNetworkStream = 1;
         return;
     }
@@ -561,6 +590,8 @@ void Widget::dropEvent(QDropEvent *event)
         return;
     qDebug()<< "fileName = "<<fileName;
     openFile(fileName);
+    bNetworkStream = 0;
+    getMultiList(fileName);
 }
 
 void Widget::list_doubleclicked(QListWidgetItem* item)

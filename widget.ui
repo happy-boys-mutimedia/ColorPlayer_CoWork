@@ -40,7 +40,7 @@
     <rect>
      <x>46</x>
      <y>320</y>
-     <width>361</width>
+     <width>311</width>
      <height>22</height>
     </rect>
    </property>
@@ -57,7 +57,7 @@
   <widget class="QLabel" name="PlayTime">
    <property name="geometry">
     <rect>
-     <x>410</x>
+     <x>360</x>
      <y>320</y>
      <width>48</width>
      <height>16</height>
@@ -98,6 +98,31 @@
     <string>00:00:00</string>
    </property>
   </widget>
+  <widget class="XSlider" name="AudioSlider">
+   <property name="geometry">
+    <rect>
+     <x>410</x>
+     <y>320</y>
+     <width>41</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="maximum">
+    <number>999</number>
+   </property>
+   <property name="pageStep">
+    <number>100</number>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -113,5 +138,42 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>AudioSlider</sender>
+   <signal>sliderPressed()</signal>
+   <receiver>Widget</receiver>
+   <slot>AudioSlider_pressed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>431</x>
+     <y>328</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>422</x>
+     <y>393</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>AudioSlider</sender>
+   <signal>sliderReleased()</signal>
+   <receiver>Widget</receiver>
+   <slot>AudioSlider_released()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>445</x>
+     <y>336</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>446</x>
+     <y>406</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>AudioSlider_pressed()</slot>
+  <slot>AudioSlider_released()</slot>
+ </slots>
 </ui>

@@ -47,6 +47,10 @@ public slots:
 
     void on_PlaySlider_sliderReleased();
 
+    void AudioSlider_pressed();
+
+    void AudioSlider_released();
+
     void on_Avsync_clicked();
 
     void trigerMenu(QAction* act);
@@ -59,6 +63,7 @@ private:
     int bNetworkStream;
     int bNeedAvsync;
     QListWidget *listWidget;
+    void getMultiList(QString url);
     int deskWidth;
     int deskHeight;
     int videoWidth;
