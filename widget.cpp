@@ -321,8 +321,6 @@ void Widget::openFile(QString name)
         {
             bOpened = 1;
             ColorPlayer::Get()->play();
-            int fps = ColorPlayer::Get()->get_fps();
-            ui->openGLWidget->startVideoWidget(fps);
         }
         else
         {
@@ -337,8 +335,6 @@ void Widget::openFile(QString name)
         {
             bOpened = 1;
             ColorPlayer::Get()->play();
-            int fps = ColorPlayer::Get()->get_fps();
-            ui->openGLWidget->startVideoWidget(fps);
         }
         else
         {
@@ -377,6 +373,8 @@ void Widget::openFile(QString name)
         this->move(0,0);
         this->resize(deskWidth, deskHeight - 40);
     }
+    int fps = ColorPlayer::Get()->get_fps();
+    ui->openGLWidget->startVideoWidget(fps);
     qDebug()<<"=======================open successful!!!!!!!=========================";
     isPlay = false;
 

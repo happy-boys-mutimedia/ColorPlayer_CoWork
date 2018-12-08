@@ -39,6 +39,8 @@ VideoWidget::VideoWidget(QWidget *p) : QOpenGLWidget(p)
 
 static int w = 0;//记录上一次的界面宽
 static int h = 0;//记录上一次的界面高
+static int cnt = 0;
+static int lastTime = 0;
 void VideoWidget::paintEvent(QPaintEvent *e)
 {
     Frame *pFrame = NULL;
@@ -57,6 +59,24 @@ void VideoWidget::paintEvent(QPaintEvent *e)
     {
         //qDebug()<<"VideoWidget::paintEvent ==> stop";
         return;
+    }
+
+    if (lastTime == 0)
+    {
+        lastTime = getCurrentTimeInMs();
+    }
+    else
+    {
+        if (getCurrentTimeInMs() - lastTime >= 1000)
+        {
+            //qDebug()<<"VideoWidget::paintEvent ==> cnt = "<<cnt;
+            cnt = 0;
+            lastTime = getCurrentTimeInMs();
+        }
+        else
+        {
+            cnt++;
+        }
     }
 
     //qDebug()<<"VideoWidget::paintEvent IN ==>"<<getCurrentTimeInMs();
@@ -165,10 +185,9 @@ void VideoWidget::startVideoWidget(int fps)
 
     if (fps)
         timerMs = 1000/fps;
-    timerMs = timerMs - 10;
 
     qDebug()<<"fps "<<fps<<"timerMs "<<timerMs<<"ms";
-    TimerID = startTimer(timerMs);
+    TimerID = startTimer(timerMs, Qt::PreciseTimer);
 }
 
 void VideoWidget::stopVideoWidget(void)
